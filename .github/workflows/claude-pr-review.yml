@@ -1,8 +1,10 @@
-# 셋업 방법 (권장): 터미널에서 `claude` 실행 후 `/install-github-app` 입력하면
-# GitHub App 설치와 ANTHROPIC_API_KEY 시크릿 등록까지 자동으로 안내해줍니다.
-# (레포 관리자 권한 필요)
+# 셋업 방법 (OAuth — Pro/Max 구독 사용량으로 과금, 별도 API 비용 없음):
+# 1. 로컬 터미널에서 `claude setup-token` 실행 → OAuth 토큰 발급
+# 2. GitHub 레포 Settings → Secrets and variables → Actions → New repository secret
+#    이름: CLAUDE_CODE_OAUTH_TOKEN, 값: 발급받은 토큰
+# 3. GitHub App 설치가 안 되어 있다면 https://github.com/apps/claude 에서 이 레포에 설치
 #
-# 참고: https://github.com/anthropics/claude-code-action
+# 참고: https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md
 
 name: Claude PR Review
 
@@ -24,7 +26,7 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
