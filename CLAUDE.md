@@ -11,7 +11,7 @@
 
 - 기술 스택: Spring Boot 3.x, Java 21, MySQL, Redis(Redisson), Spring Batch, Spring Security(JWT)
 - 백엔드 프로젝트 루트는 `back/` 디렉터리입니다 (Gradle Kotlin DSL).
-- 아키텍처: Controller → Service → Repository 3계층 구조. 도메인별 패키지 구성(`goodsfunding`, `order`, `payment`, `notification`, `user`)
+- 아키텍처: Controller → Service → Repository 3계층 구조. 도메인별 패키지 구성(`goodsfunding`, `orders`, `payment`, `notification`, `user`)
 
 ## 아키텍처 원칙
 
