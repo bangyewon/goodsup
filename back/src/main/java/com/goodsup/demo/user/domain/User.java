@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
 
-    private static final LocalDateTime NOT_DELETED =  LocalDateTime.MIN;
+    private static final LocalDateTime NOT_DELETED = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
