@@ -17,9 +17,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Table(name = "users", uniqueConstraints = {@UniqueConstraint(columnNames = {"email"}, name = "uk_user_email")})
+@Table(name = "users", uniqueConstraints = {@UniqueConstraint(columnNames = {"email", "deleted_at"}, name = "uk_user_email_deleted_at")})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
+
+    private static final LocalDateTime NOT_DELETED =  LocalDateTime.MIN;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,7 +37,7 @@ public class User extends BaseEntity {
     @Column(name = "nickname", nullable = false)
     private String nickname;
 
-    @Column(name = "deleted_at")
+    @Column(name = "deleted_at", nullable = false, columnDefinition = "datetime(6)")
     private LocalDateTime deletedAt;
 
     @Builder
@@ -43,5 +45,14 @@ public class User extends BaseEntity {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
+        this.deletedAt = NOT_DELETED;
+    }
+
+    public boolean isDeleted() {
+        return !NOT_DELETED.equals(deletedAt);
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

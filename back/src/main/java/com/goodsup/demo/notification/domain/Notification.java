@@ -37,7 +37,7 @@ public class Notification extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "goods_funding_id")
+    @JoinColumn(name = "goods_funding_id",nullable = false)
     private GoodsFunding goodsFunding;
 
     @Enumerated(EnumType.STRING)
