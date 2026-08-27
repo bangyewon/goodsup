@@ -1,7 +1,7 @@
 package com.goodsup.demo.payment.domain;
 
 import com.goodsup.demo.common.domain.BaseEntity;
-import com.goodsup.demo.order.domain.Orders;
+import com.goodsup.demo.orders.domain.Orders;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

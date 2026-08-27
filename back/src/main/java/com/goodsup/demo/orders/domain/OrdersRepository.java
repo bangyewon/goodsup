@@ -1,4 +1,4 @@
-package com.goodsup.demo.order.domain;
+package com.goodsup.demo.orders.domain;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

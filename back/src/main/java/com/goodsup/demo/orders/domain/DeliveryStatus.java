@@ -1,4 +1,4 @@
-package com.goodsup.demo.order.domain;
+package com.goodsup.demo.orders.domain;
 
 public enum DeliveryStatus {
     WAITING,

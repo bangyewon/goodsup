@@ -1,4 +1,4 @@
-package com.goodsup.demo.order.domain;
+package com.goodsup.demo.orders.domain;
 
 import com.goodsup.demo.common.domain.BaseEntity;
 import com.goodsup.demo.goods.domain.GoodsFunding;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "orders", indexes = @Index(columnList = "goods_funding_id, user_id"))
+@Table(name = "orders", indexes = @Index(name = "idx_orders_funding_user",columnList = "goods_funding_id, user_id"))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Orders extends BaseEntity {
 
