@@ -1,11 +1,13 @@
 package com.goodsup.demo.goods.controller;
 
 import com.goodsup.demo.common.apiResponse.CustomApiResponse;
-import com.goodsup.demo.goods.domain.GoodsFunding;
 import com.goodsup.demo.goods.dto.request.RegisterGoodsFundingRequest;
+import com.goodsup.demo.goods.dto.response.ShowGoodsFundingResponse;
 import com.goodsup.demo.goods.service.GoodsFundingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,10 +16,17 @@ import org.springframework.web.bind.annotation.*;
 public class GoodsFundingController {
     private final GoodsFundingService goodsFundingService;
     @PostMapping
-    public CustomApiResponse<Long> registerGoodsFunding(
+    public ResponseEntity<CustomApiResponse<Long>> registerGoodsFunding(
             @RequestHeader(value = "userId") Long userId,
             @Valid @RequestBody RegisterGoodsFundingRequest request) {
         Long goodsId = goodsFundingService.registerGoodsFunding(userId, request);
-        return CustomApiResponse.success(goodsId,200,"공동구매 창이 생성됐습니다.");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(CustomApiResponse.success(goodsId, HttpStatus.CREATED.value(), "공동구매 창이 생성됐습니다."));
+    }
+    @GetMapping("/{goodsId}")
+    public ResponseEntity<CustomApiResponse<ShowGoodsFundingResponse>> showGoodsFunding(@PathVariable Long goodsId) {
+        ShowGoodsFundingResponse response = goodsFundingService.showGoodsFunding(goodsId);
+        return ResponseEntity.ok(
+                CustomApiResponse.success(response, HttpStatus.OK.value(), "공동구매 게시물 조회를 성공했습니다."));
     }
 }

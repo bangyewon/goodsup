@@ -5,6 +5,7 @@ import com.goodsup.demo.common.exception.GoodsException;
 import com.goodsup.demo.goods.domain.GoodsFunding;
 import com.goodsup.demo.goods.domain.GoodsFundingRepository;
 import com.goodsup.demo.goods.dto.request.RegisterGoodsFundingRequest;
+import com.goodsup.demo.goods.dto.response.ShowGoodsFundingResponse;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class GoodsFundingService {
     private final GoodsFundingRepository goodsFundingRepository;
     private final UserRepository userRepository;
+
     @Transactional
     public long registerGoodsFunding(Long userId, RegisterGoodsFundingRequest request) {
         User user = userRepository.findById(userId).orElseThrow(
@@ -23,5 +25,12 @@ public class GoodsFundingService {
         GoodsFunding goodsFunding = request.toEntity(user);
         goodsFundingRepository.save(goodsFunding);
         return goodsFunding.getId();
+    }
+
+    @Transactional(readOnly = true)
+    public ShowGoodsFundingResponse showGoodsFunding(Long goodsId) {
+        GoodsFunding goodsFunding = goodsFundingRepository.findById(goodsId).orElseThrow(
+                () -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
+        return ShowGoodsFundingResponse.from(goodsFunding);
     }
 }
