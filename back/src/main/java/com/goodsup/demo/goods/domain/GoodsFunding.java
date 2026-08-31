@@ -1,6 +1,8 @@
 package com.goodsup.demo.goods.domain;
 
+import com.goodsup.demo.common.apiResponse.ErrorCode;
 import com.goodsup.demo.common.domain.BaseEntity;
+import com.goodsup.demo.common.exception.GoodsException;
 import com.goodsup.demo.user.domain.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -53,6 +55,12 @@ public class GoodsFunding extends BaseEntity {
     @Builder
     private GoodsFunding(User host, String title, String description, int price,
                           int targetQuantity, int maxQuantityPerUser, LocalDateTime deadlineAt) {
+        if (maxQuantityPerUser > targetQuantity) {
+            throw new GoodsException(ErrorCode.MAX_QUANTITY_PER_USER_EXCEEDS_TARGET);
+        }
+        if (!deadlineAt.isAfter(LocalDateTime.now())) {
+            throw new GoodsException(ErrorCode.DEADLINE_MUST_BE_FUTURE);
+        }
         this.host = host;
         this.title = title;
         this.description = description;

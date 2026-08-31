@@ -15,7 +15,11 @@ public enum ErrorCode {
     ENTITY_NOT_FOUND("객체를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     ENTITY_TYPE_INVALID("유효하지 않은 엔터티 타입입니다.", HttpStatus.BAD_REQUEST),
     BAD_REQUEST("잘못된 요청입니다", HttpStatus.BAD_REQUEST),
-    FORBIDDEN("권한이 없습니다.", HttpStatus.FORBIDDEN);
+    FORBIDDEN("권한이 없습니다.", HttpStatus.FORBIDDEN),
+
+    // 굿즈펀딩 에러
+    MAX_QUANTITY_PER_USER_EXCEEDS_TARGET("인당 최대 구매 수량은 목표 수량보다 클 수 없습니다.", HttpStatus.BAD_REQUEST),
+    DEADLINE_MUST_BE_FUTURE("마감 시각은 현재 시각보다 이후여야 합니다.", HttpStatus.BAD_REQUEST);
 
 
     private final String message;
