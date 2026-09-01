@@ -3,6 +3,7 @@ package com.goodsup.demo.common.apiResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.goodsup.demo.common.domain.ResultType;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,6 +19,10 @@ public record CustomApiResponse<T>(
 
     public static <T> CustomApiResponse<T> success(T data, int statusCode, String message) {
         return new CustomApiResponse<>(statusCode, ResultType.SUCCESS, data, null, message);
+    }
+
+    public ResponseEntity<CustomApiResponse<T>> toResponseEntity() {
+        return ResponseEntity.status(statusCode).body(this);
     }
 
     public static CustomApiResponse<?> fail(ErrorCode errorCode) {

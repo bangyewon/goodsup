@@ -1,6 +1,7 @@
 package com.goodsup.demo.goods.controller;
 
 import com.goodsup.demo.common.apiResponse.CustomApiResponse;
+import com.goodsup.demo.common.apiResponse.PageResponse;
 import com.goodsup.demo.goods.dto.request.RegisterGoodsFundingRequest;
 import com.goodsup.demo.goods.dto.response.ShowGoodsFundingListResponse;
 import com.goodsup.demo.goods.dto.response.ShowGoodsFundingResponse;
@@ -24,20 +25,20 @@ public class GoodsFundingController {
             @RequestHeader(value = "userId") Long userId,
             @Valid @RequestBody RegisterGoodsFundingRequest request) {
         Long goodsId = goodsFundingService.registerGoodsFunding(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(CustomApiResponse.success(goodsId, HttpStatus.CREATED.value(), "공동구매 창이 생성됐습니다."));
+        return CustomApiResponse.success(goodsId, HttpStatus.CREATED.value(), "공동구매 창이 생성됐습니다.")
+                .toResponseEntity();
     }
     @GetMapping("/{goodsId}")
     public ResponseEntity<CustomApiResponse<ShowGoodsFundingResponse>> showGoodsFunding(@PathVariable Long goodsId) {
         ShowGoodsFundingResponse response = goodsFundingService.showGoodsFunding(goodsId);
-        return ResponseEntity.ok(
-                CustomApiResponse.success(response, HttpStatus.OK.value(), "공동구매 게시물 조회를 성공했습니다."));
+        return CustomApiResponse.success(response, HttpStatus.OK.value(), "공동구매 게시물 조회를 성공했습니다.")
+                .toResponseEntity();
     }
     @GetMapping
-    public ResponseEntity<CustomApiResponse<Page<ShowGoodsFundingListResponse>>> showGoodsFundingList(
+    public ResponseEntity<CustomApiResponse<PageResponse<ShowGoodsFundingListResponse>>> showGoodsFundingList(
             @PageableDefault(size = 20, sort = "deadlineAt") Pageable pageable) {
-        Page<ShowGoodsFundingListResponse> response = goodsFundingService.showGoodsFundingList(pageable);
-        return ResponseEntity.ok(
-                CustomApiResponse.success(response, HttpStatus.OK.value(), "공동구매 목록 조회를 성공했습니다."));
+        Page<ShowGoodsFundingListResponse> page = goodsFundingService.showGoodsFundingList(pageable);
+        return CustomApiResponse.success(PageResponse.from(page), HttpStatus.OK.value(), "공동구매 목록 조회를 성공했습니다.")
+                .toResponseEntity();
     }
 }
