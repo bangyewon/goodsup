@@ -18,6 +18,7 @@ public record RegisterGoodsFundingRequest(
         int targetQuantity,
         @Positive(message = "인당 최대 구매 수량은 0보다 커야 합니다.")
         int maxQuantityPerUser,
+        @NotBlank(message = "마감일자는 필수입니다.")
         LocalDateTime deadlineAt
 ) {
     public GoodsFunding toEntity(User user) {
