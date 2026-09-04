@@ -35,6 +35,7 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testImplementation("org.testcontainers:junit-jupiter:1.20.4")
 	testImplementation("org.testcontainers:mysql:1.20.4")
+	testImplementation("net.jqwik:jqwik:1.9.3")
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok")

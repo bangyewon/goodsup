@@ -9,7 +9,7 @@
 목표 수량 달성 시에만 결제가 확정되고, 미달 시 전액 자동 환불되는 백엔드 서비스입니다.
 핵심 기술 과제는 마감 시각에 몰리는 **동시 결제 요청의 정합성 제어**입니다.
 
-- 기술 스택: Spring Boot 3.x, Java 21, MySQL, Redis(Redisson), Spring Batch, Spring Security(JWT)
+- 기술 스택: Spring Boot 3.x, Java 21, MySQL, Redis(Redisson), Spring Batch, Spring Security(JWT), jqwik(속성 기반 테스트)
 - 백엔드 프로젝트 루트는 `back/` 디렉터리입니다 (Gradle Kotlin DSL).
 - 아키텍처: Controller → Service → Repository 3계층 구조. 도메인별 패키지 구성(`goods`, `orders`, `payment`, `notification`, `user`)
 
@@ -41,6 +41,9 @@
 - 모든 PR은 최소 하나 이상의 테스트를 포함해야 한다. 테스트 없는 PR은 머지하지 않는다.
 - 동시성 로직(참여/결제, 마감 정산)은 반드시 동시 요청을 재현하는 통합 테스트를 작성한다(`ExecutorService` 기반 동시 호출 테스트 또는 Testcontainers 활용).
 - 단위 테스트는 JUnit5 + Mockito, 통합 테스트는 `@SpringBootTest` + Testcontainers(MySQL, Redis)를 사용한다.
+- 동시성/결제 정합성과 관련된 **불변식**(예: "참여 수량은 목표 수량을 절대 초과하지 않는다", "결제 금액 합계는 항상 정합한다", "정산 후 상태 전이는 되돌아가지 않는다")은 `jqwik`(JUnit5 통합) 기반 property-based test로 검증한다.
+  - 무작위 커맨드 시퀀스를 생성해 매 단계마다 불변식이 유지되는지 확인하는 stateful property test를 우선 활용한다.
+  - `ExecutorService` 기반 동시 요청 재현 테스트를 대체하지 않고 **보완**한다 — 사람이 미리 떠올린 특정 시나리오 밖의 반례를 찾는 용도이며, 재현된 반례는 반드시 example-based 회귀 테스트로도 고정한다.
 - CI(GitHub Actions)에서 빌드와 테스트가 모두 통과해야 머지 가능하다. AI가 생성한 코드도 예외 없이 동일한 기준을 적용한다.
 
 ## Claude Code 사용 원칙
