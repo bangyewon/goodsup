@@ -23,7 +23,7 @@
 
 ## 코딩 컨벤션
 
-- 패키지 구조: `com.goodsup.{domain}.{controller|service|repository|dto|entity}`
+- 패키지 구조: `com.goodsup.{domain}.{controller|service|dto|entity}`
 - 네이밍: 클래스는 PascalCase, 메서드/변수는 camelCase, 상수는 UPPER_SNAKE_CASE
 - DTO는 요청(`XxxRequest`)과 응답(`XxxResponse`)을 분리하고, Entity를 API 응답에 직접 노출하지 않는다.
 - Lombok은 `@Getter`, `@Builder`, `@RequiredArgsConstructor`만 사용한다. `@Data`, `@Setter`는 엔티티에 사용하지 않는다(불변성 유지).
