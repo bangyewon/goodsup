@@ -19,7 +19,9 @@
 - **Service**: 트랜잭션 경계(`@Transactional`)는 Service 계층에서만 선언한다. 트랜잭션 범위는 최대한 좁게 유지한다.
 - **Repository**: JPA 쿼리 메서드 또는 `@Query`만 작성. 비즈니스 로직 금지.
 - 공통 응답은 `ApiResponse<T>` 래퍼를 사용한다. 에러는 `GlobalExceptionHandler`에서 일괄 처리하며, 도메인별 커스텀 예외는 `xxxException`으로 명명한다.
-- 동시성이 필요한 로직(재고 차감, 마감 판정)은 반드시 Redisson `RLock` 기반 분산락을 사용하고, 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
+- 동시성이 필요한 로직(재고 차감, 마감 판정)은 반드시 명시적인 락으로 보호한다(락 없이 단순 `SELECT` 후 `UPDATE` 금지).
+  - **공구 참여(재고 차감)**: `GoodsFundingRepository.findByIdForUpdate`(`@Lock(PESSIMISTIC_WRITE)`)로 DB 비관적 락을 사용한다. Redisson RLock, 낙관적 락+재시도와 실측 비교한 결과이며 근거는 `docs/adr/0001-concurrency-control-strategy.md` 참고.
+  - 그 외 새로운 동시성 로직(마감 정산 등)에 대해 아직 실측 비교가 없다면, 코드 작성 전에 Plan Mode로 전략을 비교하고 ADR을 작성한다. Redisson RLock을 쓰는 경우 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
 
 ## 코딩 컨벤션
 
