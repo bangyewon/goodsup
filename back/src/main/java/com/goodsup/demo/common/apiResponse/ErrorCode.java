@@ -19,7 +19,10 @@ public enum ErrorCode {
 
     // 굿즈펀딩 에러
     MAX_QUANTITY_PER_USER_EXCEEDS_TARGET("인당 최대 구매 수량은 목표 수량보다 클 수 없습니다.", HttpStatus.BAD_REQUEST),
-    DEADLINE_MUST_BE_FUTURE("마감 시각은 현재 시각보다 이후여야 합니다.", HttpStatus.BAD_REQUEST);
+    DEADLINE_MUST_BE_FUTURE("마감 시각은 현재 시각보다 이후여야 합니다.", HttpStatus.BAD_REQUEST),
+    RECRUITING_CLOSED("모집이 끝났습니다.", HttpStatus.CONFLICT),
+    MAX_QUANTITY_OVER("살 수 있는 수량을 초과했습니다.",HttpStatus.BAD_REQUEST),
+    QUANTITY_EXCEEDS_REMAINING("잔여 수량이 부족합니다.", HttpStatus.CONFLICT);
 
 
     private final String message;
