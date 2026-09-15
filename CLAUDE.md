@@ -9,7 +9,7 @@
 목표 수량 달성 시에만 결제가 확정되고, 미달 시 전액 자동 환불되는 백엔드 서비스입니다.
 핵심 기술 과제는 마감 시각에 몰리는 **동시 결제 요청의 정합성 제어**입니다.
 
-- 기술 스택: Spring Boot 3.x, Java 21, MySQL, Redis(Redisson), Spring Batch, Spring Security(JWT)
+- 기술 스택: Spring Boot 3.x, Java 21, MySQL, Redis(Redisson), Spring Batch, Spring Security(JWT), jqwik(속성 기반 테스트)
 - 백엔드 프로젝트 루트는 `back/` 디렉터리입니다 (Gradle Kotlin DSL).
 - 아키텍처: Controller → Service → Repository 3계층 구조. 도메인별 패키지 구성(`goods`, `orders`, `payment`, `notification`, `user`)
 
@@ -19,11 +19,13 @@
 - **Service**: 트랜잭션 경계(`@Transactional`)는 Service 계층에서만 선언한다. 트랜잭션 범위는 최대한 좁게 유지한다.
 - **Repository**: JPA 쿼리 메서드 또는 `@Query`만 작성. 비즈니스 로직 금지.
 - 공통 응답은 `ApiResponse<T>` 래퍼를 사용한다. 에러는 `GlobalExceptionHandler`에서 일괄 처리하며, 도메인별 커스텀 예외는 `xxxException`으로 명명한다.
-- 동시성이 필요한 로직(재고 차감, 마감 판정)은 반드시 Redisson `RLock` 기반 분산락을 사용하고, 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
+- 동시성이 필요한 로직(재고 차감, 마감 판정)은 반드시 명시적인 락으로 보호한다(락 없이 단순 `SELECT` 후 `UPDATE` 금지).
+  - **공구 참여(재고 차감)**: `GoodsFundingRepository.findByIdForUpdate`(`@Lock(PESSIMISTIC_WRITE)`)로 DB 비관적 락을 사용한다. Redisson RLock, 낙관적 락+재시도와 실측 비교한 결과이며 근거는 `docs/adr/0001-concurrency-control-strategy.md` 참고.
+  - 그 외 새로운 동시성 로직(마감 정산 등)에 대해 아직 실측 비교가 없다면, 코드 작성 전에 Plan Mode로 전략을 비교하고 ADR을 작성한다. Redisson RLock을 쓰는 경우 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
 
 ## 코딩 컨벤션
 
-- 패키지 구조: `com.goodsup.{domain}.{controller|service|repository|dto|entity}`
+- 패키지 구조: `com.goodsup.{domain}.{controller|service|dto|entity}`
 - 네이밍: 클래스는 PascalCase, 메서드/변수는 camelCase, 상수는 UPPER_SNAKE_CASE
 - DTO는 요청(`XxxRequest`)과 응답(`XxxResponse`)을 분리하고, Entity를 API 응답에 직접 노출하지 않는다.
 - Lombok은 `@Getter`, `@Builder`, `@RequiredArgsConstructor`만 사용한다. `@Data`, `@Setter`는 엔티티에 사용하지 않는다(불변성 유지).
@@ -41,6 +43,9 @@
 - 모든 PR은 최소 하나 이상의 테스트를 포함해야 한다. 테스트 없는 PR은 머지하지 않는다.
 - 동시성 로직(참여/결제, 마감 정산)은 반드시 동시 요청을 재현하는 통합 테스트를 작성한다(`ExecutorService` 기반 동시 호출 테스트 또는 Testcontainers 활용).
 - 단위 테스트는 JUnit5 + Mockito, 통합 테스트는 `@SpringBootTest` + Testcontainers(MySQL, Redis)를 사용한다.
+- 동시성/결제 정합성과 관련된 **불변식**(예: "참여 수량은 목표 수량을 절대 초과하지 않는다", "결제 금액 합계는 항상 정합한다", "정산 후 상태 전이는 되돌아가지 않는다")은 `jqwik`(JUnit5 통합) 기반 property-based test로 검증한다.
+  - 무작위 커맨드 시퀀스를 생성해 매 단계마다 불변식이 유지되는지 확인하는 stateful property test를 우선 활용한다.
+  - `ExecutorService` 기반 동시 요청 재현 테스트를 대체하지 않고 **보완**한다 — 사람이 미리 떠올린 특정 시나리오 밖의 반례를 찾는 용도이며, 재현된 반례는 반드시 example-based 회귀 테스트로도 고정한다.
 - CI(GitHub Actions)에서 빌드와 테스트가 모두 통과해야 머지 가능하다. AI가 생성한 코드도 예외 없이 동일한 기준을 적용한다.
 
 ## Claude Code 사용 원칙

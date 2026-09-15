@@ -71,4 +71,15 @@ public class GoodsFunding extends BaseEntity {
         this.currentQuantity = 0;
         this.status = GoodsFundingStatus.RECRUITING;
     }
+
+    public void increaseQuantityAndCloseIfNeeded(int quantity) {
+        int remainingQuantity = targetQuantity - currentQuantity;
+        if (remainingQuantity < quantity) {
+            throw new GoodsException(ErrorCode.QUANTITY_EXCEEDS_REMAINING);
+        }
+        this.currentQuantity += quantity;
+        if (this.currentQuantity >= this.targetQuantity) {
+            this.status = GoodsFundingStatus.FINISHED;
+        }
+    }
 }
