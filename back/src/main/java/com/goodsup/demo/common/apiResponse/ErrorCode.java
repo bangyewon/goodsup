@@ -22,7 +22,10 @@ public enum ErrorCode {
     DEADLINE_MUST_BE_FUTURE("마감 시각은 현재 시각보다 이후여야 합니다.", HttpStatus.BAD_REQUEST),
     RECRUITING_CLOSED("모집이 끝났습니다.", HttpStatus.CONFLICT),
     MAX_QUANTITY_OVER("살 수 있는 수량을 초과했습니다.",HttpStatus.BAD_REQUEST),
-    QUANTITY_EXCEEDS_REMAINING("잔여 수량이 부족합니다.", HttpStatus.CONFLICT);
+    QUANTITY_EXCEEDS_REMAINING("잔여 수량이 부족합니다.", HttpStatus.CONFLICT),
+
+    // 유저 에러
+    EMAIL_ALREADY_EXISTS("이미 가입된 이메일입니다.", HttpStatus.CONFLICT);
 
 
     private final String message;
