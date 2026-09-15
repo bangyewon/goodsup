@@ -27,7 +27,7 @@ public class OrderController {
             @PathVariable Long goodsFundingId,
             @Valid @RequestBody ParticipateGoodsFundingRequest request) {
         OrderResponse response = orderService.participateGoodsFunding(
-                userId, new ParticipateGoodsFundingRequest(goodsFundingId, request.quantity()));
+                userId, goodsFundingId,request);
         return CustomApiResponse.success(response, HttpStatus.CREATED.value(), "공동구매 참여가 완료됐습니다.")
                 .toResponseEntity();
     }

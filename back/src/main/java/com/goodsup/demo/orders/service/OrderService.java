@@ -25,18 +25,18 @@ public class OrderService {
     private final OrdersRepository ordersRepository;
 
     @Transactional
-    public OrderResponse participateGoodsFunding(Long userId, ParticipateGoodsFundingRequest request) {
+    public OrderResponse participateGoodsFunding(Long userId, Long goodsFundingId,ParticipateGoodsFundingRequest request) {
         User user = userRepository.findById(userId).orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
 
         // ADR-0001: 공구 참여(재고 차감)는 DB 비관적 락(findByIdForUpdate)으로 동시성을 제어
-        GoodsFunding goodsFunding = goodsFundingRepository.findByIdForUpdate(request.goodsFundingId())
+        GoodsFunding goodsFunding = goodsFundingRepository.findByIdForUpdate(goodsFundingId)
                 .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
 
         if (goodsFunding.getStatus() != GoodsFundingStatus.RECRUITING
                 || !goodsFunding.getDeadlineAt().isAfter(LocalDateTime.now())) {
             throw new GoodsException(ErrorCode.RECRUITING_CLOSED);
         }
-        int alreadyOrderedQuantity = ordersRepository.sumQuantityByGoodsFundingIdAndUserId(request.goodsFundingId(), userId);
+        int alreadyOrderedQuantity = ordersRepository.sumQuantityByGoodsFundingIdAndUserId(goodsFundingId, userId);
         if (goodsFunding.getMaxQuantityPerUser() < alreadyOrderedQuantity + request.quantity()) {
             throw new GoodsException(ErrorCode.MAX_QUANTITY_OVER);
         }

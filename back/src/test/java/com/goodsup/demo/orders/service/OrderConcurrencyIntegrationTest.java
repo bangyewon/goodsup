@@ -79,7 +79,7 @@ class OrderConcurrencyIntegrationTest extends AbstractConcurrencyIntegrationTest
                     startSignal.await();
                     try {
                         orderService.participateGoodsFunding(
-                                participantId, new ParticipateGoodsFundingRequest(goodsFundingId, 1));
+                                participantId,goodsFundingId, new ParticipateGoodsFundingRequest( 1));
                         successCount.incrementAndGet();
                     } catch (Exception ignored) {
                         // 재고 소진에 따른 정상적인 거절은 무시한다.

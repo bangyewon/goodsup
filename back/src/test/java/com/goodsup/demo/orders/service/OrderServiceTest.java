@@ -63,15 +63,15 @@ class OrderServiceTest {
                 .build();
     }
 
-    private ParticipateGoodsFundingRequest request(Long goodsFundingId, int quantity) {
-        return new ParticipateGoodsFundingRequest(goodsFundingId, quantity);
+    private ParticipateGoodsFundingRequest request(int quantity) {
+        return new ParticipateGoodsFundingRequest(quantity);
     }
 
     @Test
     void 존재하지_않는_유저가_참여하면_예외가_발생한다() {
         when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 1)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(1)))
                 .isInstanceOf(GoodsException.class);
 
         verify(goodsFundingRepository, never()).findByIdForUpdate(anyLong());
@@ -82,7 +82,7 @@ class OrderServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user()));
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 1)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(1)))
                 .isInstanceOf(GoodsException.class);
     }
 
@@ -93,7 +93,7 @@ class OrderServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user()));
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 1)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(1)))
                 .isInstanceOf(GoodsException.class);
 
         verify(ordersRepository, never()).save(any());
@@ -106,7 +106,7 @@ class OrderServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user()));
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 1)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(1)))
                 .isInstanceOf(GoodsException.class);
 
         verify(ordersRepository, never()).save(any());
@@ -118,7 +118,7 @@ class OrderServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user()));
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 3)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(3)))
                 .isInstanceOf(GoodsException.class);
 
         verify(ordersRepository, never()).save(any());
@@ -131,7 +131,7 @@ class OrderServiceTest {
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
         when(ordersRepository.sumQuantityByGoodsFundingIdAndUserId(1L, 1L)).thenReturn(4);
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 2)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(2)))
                 .isInstanceOf(GoodsException.class);
 
         verify(ordersRepository, never()).save(any());
@@ -144,7 +144,7 @@ class OrderServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user()));
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
 
-        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, request(1L, 3)))
+        assertThatThrownBy(() -> orderService.participateGoodsFunding(1L, 1L, request(3)))
                 .isInstanceOf(GoodsException.class);
 
         verify(ordersRepository, never()).save(any());
@@ -161,7 +161,7 @@ class OrderServiceTest {
             return saved;
         });
 
-        OrderResponse response = orderService.participateGoodsFunding(1L, request(1L, 3));
+        OrderResponse response = orderService.participateGoodsFunding(1L, 1L, request(3));
 
         assertThat(response.quantity()).isEqualTo(3);
         assertThat(goodsFunding.getCurrentQuantity()).isEqualTo(3);
@@ -176,7 +176,7 @@ class OrderServiceTest {
         when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
         when(ordersRepository.save(any(Orders.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        orderService.participateGoodsFunding(1L, request(1L, 3));
+        orderService.participateGoodsFunding(1L, 1L, request(3));
 
         assertThat(goodsFunding.getCurrentQuantity()).isEqualTo(10);
         assertThat(goodsFunding.getStatus()).isEqualTo(GoodsFundingStatus.FINISHED);
