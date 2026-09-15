@@ -82,4 +82,24 @@ public class GoodsFunding extends BaseEntity {
             this.status = GoodsFundingStatus.FINISHED;
         }
     }
+
+    /**
+     * 마감 시각이 지났고 목표 수량 미달인 경우에만 FAILED로 전이한다.
+     * 이미 확정 상태(FINISHED/FAILED)이거나 목표를 채웠다면 아무것도 하지 않고 false를 반환한다 —
+     * 호출자가 findByIdForUpdate 락을 쥔 채로 호출해야 참여 경로(increaseQuantityAndCloseIfNeeded)와의
+     * 경합을 피할 수 있다(ADR-0002).
+     */
+    public boolean closeAsFailedIfDeadlinePassed(LocalDateTime referenceTime) {
+        if (this.status != GoodsFundingStatus.RECRUITING) {
+            return false;
+        }
+        if (referenceTime.isBefore(this.deadlineAt)) {
+            return false;
+        }
+        if (this.currentQuantity >= this.targetQuantity) {
+            return false;
+        }
+        this.status = GoodsFundingStatus.FAILED;
+        return true;
+    }
 }
