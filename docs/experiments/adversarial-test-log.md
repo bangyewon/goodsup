@@ -86,6 +86,31 @@ B-1(분산락 없음, 알림 unique 제약)의 상태 전이·중복 실행 방�
 - 시나리오 1은 동시성 타이밍 문제가 아니라 "두 개의 분리된 트랜잭션(후보 조회 vs 실제 발송) 사이의 시간차"에서 나온 일반적인 stale-read 문제였다 — ADR-0002가 이미 검증한 "동시 경합"과는 다른 종류의 반례였다는 점에서, 같은 배치라도 "동시에 여러 번 도는 경우"와 "한 번 도는 동안 시간이 흐르는 경우"를 별도로 검토해야 한다는 교훈을 남긴다.
 - 시나리오 2(중복 실행 방지)는 ADR-0002가 "잡 1이 아직 구현되지 않아 실행하지 못했다"고 명시적으로 남겨뒀던 후속 작업이었다 — 이번 구현과 함께 실제로 실행해 B-1 패턴이 잡 1에도 유효함을 실측으로 닫았다.
 
+---
+
+대상 로직: `GoodsFunding.increaseQuantityAndCloseIfNeeded`/`closeAsFailedIfDeadlinePassed`
+(ADR-0002 A-1을 `GoodsFundingService`/`DeadlineSettlementScheduler`로 프로덕션 배선하는 과정,
+이슈 #6 잡 2). 사람이 시나리오를 미리 떠올려 요청한 것이 아니라, CLAUDE.md가 요구하는 jqwik
+stateful property test(참여 명령 + 정산 명령을 섞은 무작위 커맨드 시퀀스)를 작성해 실행하는 중
+jqwik이 자동으로 축소(shrink)한 반례로 발견됐다.
+
+| # | 시나리오 | 실제 재현 여부 | 원인 | 수정 내용 | 관련 커밋 |
+|---|---|---|---|---|---|
+| 1 | 정산 배치가 먼저 `FAILED`로 확정한 뒤, 그 시점 이후에도(예: 지연된 재시도, 또는 향후 새 호출 경로가 상태 체크 없이 호출하는 경우) `increaseQuantityAndCloseIfNeeded`가 호출되면 `remainingQuantity`만 보고 통과시켜 수량이 계속 증가하고, 목표에 도달하면 `FAILED -> FINISHED`로 재전이한다 | **재현됨** (jqwik 축소 결과: `commands=[0(정산), 10, 15, 15, 15, 15, 15, 15](참여)` — 정산으로 FAILED 확정 후 참여 누적으로 FINISHED 재전이) | `increaseQuantityAndCloseIfNeeded`가 `status`를 전혀 확인하지 않고 `targetQuantity - currentQuantity`만으로 수량 증가 가능 여부를 판단함. 현재 유일한 호출자인 `OrderService.participateGoodsFunding`은 호출 전 `status == RECRUITING`을 확인해서 실무에서는 막혀 있었지만, 그 가드는 호출자 쪽에만 있고 엔티티 자신은 "정산 후 상태 전이는 되돌아가지 않는다"는 불변식을 스스로 지키지 못했다 | `increaseQuantityAndCloseIfNeeded` 시작부에 `status != RECRUITING`이면 `GoodsException(RECRUITING_CLOSED)`를 던지는 가드 추가(`closeAsFailedIfDeadlinePassed`가 이미 대칭적으로 갖고 있던 가드와 동일 패턴). 회귀 테스트를 jqwik 반례를 축소한 그대로 `GoodsFundingTest`에 example-based로 고정 | 이번 커밋(GoodsFunding/GoodsFundingTest/GoodsFundingConcurrencyInvariantPropertyTest) |
+
+### 회고 (#6, 잡 2 프로덕션 배선)
+
+- 이 반례는 동시성(여러 스레드가 동시에 부르는 경합)이 아니라 **단일 스레드 안에서의 순서 위반**이다
+  — jqwik property test가 "동시 요청 재현 테스트를 대체하지 않고 보완한다"고 CLAUDE.md에 명시된
+  이유를 그대로 보여준다: `ExecutorService` 기반 통합 테스트(`DeadlineSettlementConcurrencyTest`)는
+  "참여 vs 정산이 동시에 오는 경우"만 다루고, "정산 이후 시점에 참여가 뒤늦게 온다"는 순서는
+  다루지 않았다.
+- 현재 프로덕션 호출 경로(`OrderService`)에서는 이 버그가 실제로 발현되지 않는다 — 호출자 쪽
+  가드가 이미 막고 있기 때문이다. 그럼에도 엔티티 레벨에서 고친 이유는, 이 메서드가 앞으로 새
+  호출자(예: 관리자 도구, 배치 보정 스크립트)를 얻을 가능성이 있고, 그때마다 호출자가 매번
+  `status`를 재확인해야 한다는 암묵적 전제에 의존하는 것보다 엔티티 스스로 불변식을 지키는 편이
+  더 안전하기 때문이다.
+
 ## AI 검증자 자신의 오류 기록 (#6)
 
 위 표는 "코드가 실패하는 시나리오"를 다루지만, 아래는 **AI(Claude)가 검증 과정에서 스스로 낸 오류**를
