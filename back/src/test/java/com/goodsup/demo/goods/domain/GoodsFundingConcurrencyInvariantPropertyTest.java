@@ -33,7 +33,7 @@ class GoodsFundingConcurrencyInvariantPropertyTest {
             try {
                 goodsFunding.increaseQuantityAndCloseIfNeeded(quantity);
             } catch (GoodsException e) {
-                // 잔여 수량 부족에 따른 정상 거절 — 상태는 변하지 않아야 한다.
+                // 잔여 수량 부족에 따른 정상 거절
             }
 
             assertThat(goodsFunding.getCurrentQuantity()).isLessThanOrEqualTo(TARGET_QUANTITY);
@@ -48,7 +48,46 @@ class GoodsFundingConcurrencyInvariantPropertyTest {
         return Arbitraries.integers().between(1, 15).list().ofMinSize(1).ofMaxSize(50);
     }
 
+    @Property
+    void 참여와_정산_시도를_임의_순서로_섞어도_정산_불변식이_유지된다(@ForAll("mixedCommandSequences") List<Integer> commands) {
+        LocalDateTime deadlineAt = LocalDateTime.now().plusSeconds(1);
+        LocalDateTime afterDeadline = deadlineAt.plusSeconds(1);
+        GoodsFunding goodsFunding = newGoodsFunding(deadlineAt);
+
+        for (int command : commands) {
+            GoodsFundingStatus statusBefore = goodsFunding.getStatus();
+
+            if (command <= 0) {
+                goodsFunding.closeAsFailedIfDeadlinePassed(afterDeadline);
+            } else {
+                try {
+                    goodsFunding.increaseQuantityAndCloseIfNeeded(command);
+                } catch (GoodsException e) {
+                    // 잔여 수량 부족에 따른 정상 거절
+                }
+            }
+
+            assertThat(goodsFunding.getCurrentQuantity()).isLessThanOrEqualTo(TARGET_QUANTITY);
+            if (goodsFunding.getStatus() == GoodsFundingStatus.FAILED) {
+                assertThat(goodsFunding.getCurrentQuantity()).isLessThan(TARGET_QUANTITY);
+            }
+            // FINISHED/FAILED로 한 번 확정되면 이후 어떤 커맨드가 와도 되돌아가지 않는다(단조성).
+            if (statusBefore == GoodsFundingStatus.FINISHED || statusBefore == GoodsFundingStatus.FAILED) {
+                assertThat(goodsFunding.getStatus()).isEqualTo(statusBefore);
+            }
+        }
+    }
+
+    @Provide
+    Arbitrary<List<Integer>> mixedCommandSequences() {
+        return Arbitraries.integers().between(-1, 15).list().ofMinSize(1).ofMaxSize(50);
+    }
+
     private GoodsFunding newGoodsFunding() {
+        return newGoodsFunding(LocalDateTime.now().plusDays(1));
+    }
+
+    private GoodsFunding newGoodsFunding(LocalDateTime deadlineAt) {
         User host = User.builder()
                 .email("host@jqwik-test.com")
                 .password("password")
@@ -61,7 +100,7 @@ class GoodsFundingConcurrencyInvariantPropertyTest {
                 .price(1000)
                 .targetQuantity(TARGET_QUANTITY)
                 .maxQuantityPerUser(TARGET_QUANTITY)
-                .deadlineAt(LocalDateTime.now().plusDays(1))
+                .deadlineAt(deadlineAt)
                 .build();
     }
 }

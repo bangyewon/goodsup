@@ -73,6 +73,9 @@ public class GoodsFunding extends BaseEntity {
     }
 
     public void increaseQuantityAndCloseIfNeeded(int quantity) {
+        if (this.status != GoodsFundingStatus.RECRUITING) {
+            throw new GoodsException(ErrorCode.RECRUITING_CLOSED);
+        }
         int remainingQuantity = targetQuantity - currentQuantity;
         if (remainingQuantity < quantity) {
             throw new GoodsException(ErrorCode.QUANTITY_EXCEEDS_REMAINING);
@@ -81,5 +84,19 @@ public class GoodsFunding extends BaseEntity {
         if (this.currentQuantity >= this.targetQuantity) {
             this.status = GoodsFundingStatus.FINISHED;
         }
+    }
+
+    public boolean closeAsFailedIfDeadlinePassed(LocalDateTime referenceTime) {
+        if (this.status != GoodsFundingStatus.RECRUITING) {
+            return false;
+        }
+        if (referenceTime.isBefore(this.deadlineAt)) {
+            return false;
+        }
+        if (this.currentQuantity >= this.targetQuantity) {
+            return false;
+        }
+        this.status = GoodsFundingStatus.FAILED;
+        return true;
     }
 }
