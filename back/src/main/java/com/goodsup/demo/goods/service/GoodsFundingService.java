@@ -59,4 +59,24 @@ public class GoodsFundingService {
         return goodsFundingRepository.findById(goodsFundingId)
                 .filter(goodsFunding -> goodsFunding.getStatus() == GoodsFundingStatus.RECRUITING);
     }
+
+    @Transactional(readOnly = true)
+    public List<Long> findExpiredRecruitingIds(LocalDateTime referenceTime) {
+        return goodsFundingRepository.findIdsByStatusAndDeadlineAtBefore(
+                GoodsFundingStatus.RECRUITING, referenceTime);
+    }
+
+    @Transactional
+    public boolean settleAsFailed(Long goodsFundingId, LocalDateTime referenceTime) {
+        GoodsFunding goodsFunding = goodsFundingRepository.findByIdForUpdate(goodsFundingId)
+                .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
+        return goodsFunding.closeAsFailedIfDeadlinePassed(referenceTime);
+    }
+
+    // 발송 직전 상태 확인 용도
+    @Transactional(readOnly = true)
+    public Optional<GoodsFunding> findFailed(Long goodsFundingId) {
+        return goodsFundingRepository.findById(goodsFundingId)
+                .filter(goodsFunding -> goodsFunding.getStatus() == GoodsFundingStatus.FAILED);
+    }
 }

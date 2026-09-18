@@ -115,4 +115,60 @@ class NotificationServiceTest {
                 .existsByUserIdAndGoodsFundingIdAndType(anyLong(), anyLong(), any());
         verify(notificationRepository, never()).save(any());
     }
+
+    @Test
+    void 정산_전이_확인이_안_되면_실패_알림을_보내지_않는다() {
+        when(goodsFundingService.findFailed(1L)).thenReturn(Optional.empty());
+
+        int sentCount = notificationService.notifyFundingFailed(1L, List.of(1L));
+
+        assertThat(sentCount).isEqualTo(0);
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void 참여자에게_정산_실패_알림을_발송한다() {
+        when(goodsFundingService.findFailed(1L)).thenReturn(Optional.of(goodsFunding()));
+        when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(1L, 1L, NotificationType.FUNDING_FAILED))
+                .thenReturn(false);
+        when(userRepository.getReferenceById(1L)).thenReturn(
+                User.builder().email("user@test.com").password("password").nickname("user").build());
+        when(notificationRepository.save(any(Notification.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        int sentCount = notificationService.notifyFundingFailed(1L, List.of(1L));
+
+        assertThat(sentCount).isEqualTo(1);
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void 이미_실패_알림이_존재하면_다시_발송하지_않는다() {
+        when(goodsFundingService.findFailed(1L)).thenReturn(Optional.of(goodsFunding()));
+        when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(1L, 1L, NotificationType.FUNDING_FAILED))
+                .thenReturn(true);
+
+        int sentCount = notificationService.notifyFundingFailed(1L, List.of(1L));
+
+        assertThat(sentCount).isEqualTo(0);
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void 정산_실패_알림_동시_실행으로_유니크_제약에_걸리면_해당_유저만_건너뛴다() {
+        when(goodsFundingService.findFailed(1L)).thenReturn(Optional.of(goodsFunding()));
+        when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(
+                anyLong(), eq(1L), eq(NotificationType.FUNDING_FAILED)))
+                .thenReturn(false);
+        when(userRepository.getReferenceById(anyLong())).thenReturn(
+                User.builder().email("user@test.com").password("password").nickname("user").build());
+        when(notificationRepository.save(any(Notification.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate"))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        int sentCount = notificationService.notifyFundingFailed(1L, List.of(1L, 2L));
+
+        assertThat(sentCount).isEqualTo(1);
+        verify(notificationRepository, times(2)).save(any(Notification.class));
+    }
 }

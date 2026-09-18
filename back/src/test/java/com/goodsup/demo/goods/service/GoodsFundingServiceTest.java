@@ -137,4 +137,47 @@ class GoodsFundingServiceTest {
                         org.assertj.core.groups.Tuple.tuple("펀딩2", "host2")
                 );
     }
+
+    @Test
+    void 마감이_지난_RECRUITING_공구_id를_조회한다() {
+        LocalDateTime referenceTime = LocalDateTime.now();
+        when(goodsFundingRepository.findIdsByStatusAndDeadlineAtBefore(
+                com.goodsup.demo.goods.domain.GoodsFundingStatus.RECRUITING, referenceTime))
+                .thenReturn(List.of(1L, 2L));
+
+        List<Long> candidateIds = goodsFundingService.findExpiredRecruitingIds(referenceTime);
+
+        assertThat(candidateIds).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void 목표_미달로_마감된_공구는_락을_잡고_FAILED로_전이한다() {
+        GoodsFunding goodsFunding = goodsFunding(host("host"), "펀딩");
+        LocalDateTime referenceTime = goodsFunding.getDeadlineAt().plusSeconds(1);
+        when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
+
+        boolean transitioned = goodsFundingService.settleAsFailed(1L, referenceTime);
+
+        assertThat(transitioned).isTrue();
+        assertThat(goodsFunding.getStatus()).isEqualTo(com.goodsup.demo.goods.domain.GoodsFundingStatus.FAILED);
+    }
+
+    @Test
+    void 마감_전이면_정산해도_전이되지_않는다() {
+        GoodsFunding goodsFunding = goodsFunding(host("host"), "펀딩");
+        when(goodsFundingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(goodsFunding));
+
+        boolean transitioned = goodsFundingService.settleAsFailed(1L, LocalDateTime.now());
+
+        assertThat(transitioned).isFalse();
+        assertThat(goodsFunding.getStatus()).isEqualTo(com.goodsup.demo.goods.domain.GoodsFundingStatus.RECRUITING);
+    }
+
+    @Test
+    void 존재하지_않는_공구를_정산하면_예외가_발생한다() {
+        when(goodsFundingRepository.findByIdForUpdate(anyLong())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> goodsFundingService.settleAsFailed(1L, LocalDateTime.now()))
+                .isInstanceOf(GoodsException.class);
+    }
 }

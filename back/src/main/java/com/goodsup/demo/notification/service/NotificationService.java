@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -26,28 +28,39 @@ public class NotificationService {
 
     @Transactional
     public int notifyDeadlineSoon(Long goodsFundingId, List<Long> userIds) {
-        GoodsFunding goodsFunding = goodsFundingService.findRecruiting(goodsFundingId).orElse(null);
+        return notify(goodsFundingId, userIds, NotificationType.DEADLINE_SOON,
+                () -> goodsFundingService.findRecruiting(goodsFundingId));
+    }
+
+    @Transactional
+    public int notifyFundingFailed(Long goodsFundingId, List<Long> userIds) {
+        return notify(goodsFundingId, userIds, NotificationType.FUNDING_FAILED,
+                () -> goodsFundingService.findFailed(goodsFundingId));
+    }
+
+    private int notify(Long goodsFundingId, List<Long> userIds, NotificationType type,
+                        Supplier<Optional<GoodsFunding>> stateCheck) {
+        GoodsFunding goodsFunding = stateCheck.get().orElse(null);
         if (goodsFunding == null) {
             return 0;
         }
         int sentCount = 0;
         for (Long userId : userIds) {
-            if (notificationRepository.existsByUserIdAndGoodsFundingIdAndType(
-                    userId, goodsFundingId, NotificationType.DEADLINE_SOON)) {
+            if (notificationRepository.existsByUserIdAndGoodsFundingIdAndType(userId, goodsFundingId, type)) {
                 continue;
             }
             try {
                 Notification notification = Notification.builder()
                         .user(userRepository.getReferenceById(userId))
                         .goodsFunding(goodsFunding)
-                        .type(NotificationType.DEADLINE_SOON)
+                        .type(type)
                         .build();
                 notification.markSent(LocalDateTime.now());
                 notificationRepository.save(notification);
-                log.info("마감임박 알림 발송: userId={}, goodsFundingId={}", userId, goodsFundingId);
+                log.info("알림 발송: type={}, userId={}, goodsFundingId={}", type, userId, goodsFundingId);
                 sentCount++;
             } catch (DataIntegrityViolationException e) {
-                log.info("마감임박 알림 중복 시도 무시: userId={}, goodsFundingId={}", userId, goodsFundingId);
+                log.info("알림 중복 시도 무시: type={}, userId={}, goodsFundingId={}", type, userId, goodsFundingId);
             }
         }
         return sentCount;
