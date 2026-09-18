@@ -61,4 +61,9 @@ public class Notification extends BaseEntity {
         this.type = type;
         this.status = NotificationStatus.PENDING;
     }
+
+    public void markSent(LocalDateTime sentAt) {
+        this.status = NotificationStatus.SENT;
+        this.sentAt = sentAt;
+    }
 }

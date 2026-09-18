@@ -70,6 +70,22 @@ B-1(분산락 없음, 알림 unique 제약)의 상태 전이·중복 실행 방�
   반대되는 결과였다(ADR-0002 실측 결과 절 참고). "직관적으로 빠를 것 같은 단일 SQL"이 실측 없이는
   근거가 될 수 없다는 CLAUDE.md 원칙을 다시 한번 확인시켜준 사례다.
 
+---
+
+대상 로직: `NotificationService.notifyDeadlineSoon`/`DeadlineSoonNotificationScheduler`(이슈 #6 잡 1, 마감임박 알림).
+
+| # | 시나리오 | 실제 재현 여부 | 원인 | 수정 내용 | 관련 커밋 |
+|---|---|---|---|---|---|
+| 1 | 스케줄러가 임박 대상 id를 조회한 시점엔 `RECRUITING`이었지만, 그 이후 `NotificationService.notifyDeadlineSoon`이 실제로 실행되는 시점 사이에(참여로 목표 달성 → `FINISHED`, 또는 배치 정산 → `FAILED`) 상태가 바뀌면, 이미 끝난 공구에도 여전히 "마감임박" 알림이 나간다 | **재현됨** | `notifyDeadlineSoon`이 `GoodsFunding`을 FK 참조용 프록시(`getReferenceById`, 쿼리 없음)로만 사용하고 현재 상태를 재확인하지 않음 — 후보 조회와 발송 사이의 시간차를 고려하지 않은 설계 누락 | `GoodsFundingService.getReference`를 제거하고 `findRecruiting(id)`(실제 조회 + `status == RECRUITING` 필터)로 교체, `notifyDeadlineSoon`은 이 조회 결과가 없으면(이미 RECRUITING이 아니면) 즉시 0건 반환하고 종료 | 이번 커밋(GoodsFundingService/NotificationService/NotificationServiceTest) |
+| 2 | 배치가 중첩·중복 실행되면 `DEADLINE_SOON` 알림이 참여자 수보다 많이 발송될 수 있다 | 재현 안 됨 (통합 테스트로 실측, ADR-0002가 미뤄둔 시나리오 3) | `existsBy` 사전체크 + `Notification` 유니크 제약(`uk_notification_user_funding_type`) + 개별 `DataIntegrityViolationException` catch 조합(B-1 패턴)이 잡 1에도 동일하게 유효함을 실측 확인 — 참여자 19명, 동시 호출 10회에서도 알림은 정확히 19건 | - | - |
+| 3 | `threshold-hours` 설정값이 0 이하이거나 매우 크면 어떻게 되는가 | 해당 없음 (데이터 정합성 문제 아님) | `now.plusHours(threshold)`가 `now`보다 이전이 되면 BETWEEN 조건이 항상 거짓이 되어 후보가 조회되지 않을 뿐, 예외나 오동작은 없음 — 운영 설정값의 문제이지 로직 결함이 아님 | - | - |
+| 4 | 스케줄러 조회 이후 대상 공구가 삭제되면 어떻게 되는가 | 해당 없음 | 현재 코드베이스에 `GoodsFunding` 삭제 기능 자체가 없음(`grep` 확인) — 발생 불가능한 시나리오 | - | - |
+
+## 회고 (#6, 잡 1)
+
+- 시나리오 1은 동시성 타이밍 문제가 아니라 "두 개의 분리된 트랜잭션(후보 조회 vs 실제 발송) 사이의 시간차"에서 나온 일반적인 stale-read 문제였다 — ADR-0002가 이미 검증한 "동시 경합"과는 다른 종류의 반례였다는 점에서, 같은 배치라도 "동시에 여러 번 도는 경우"와 "한 번 도는 동안 시간이 흐르는 경우"를 별도로 검토해야 한다는 교훈을 남긴다.
+- 시나리오 2(중복 실행 방지)는 ADR-0002가 "잡 1이 아직 구현되지 않아 실행하지 못했다"고 명시적으로 남겨뒀던 후속 작업이었다 — 이번 구현과 함께 실제로 실행해 B-1 패턴이 잡 1에도 유효함을 실측으로 닫았다.
+
 ## AI 검증자 자신의 오류 기록 (#6)
 
 위 표는 "코드가 실패하는 시나리오"를 다루지만, 아래는 **AI(Claude)가 검증 과정에서 스스로 낸 오류**를

@@ -126,6 +126,17 @@ Testcontainers MySQL 8.0 기준으로 실행했다. A-3, B-2는 A-1/A-2·B-1만�
   3. 시나리오 2의 마감 버퍼(`plusSeconds(1)`)가 사전 참여 19회 순차 호출을 실제 벽시계 기준으로
      끝내기엔 너무 촉박해 환경이 느릴 때 정상 참여도 "모집이 끝났습니다"로 거절됐다 → 버퍼를
      10초로 확대(배치 판정 자체는 `referenceTime` 주입이라 버퍼 크기와 무관하게 결정론적).
+- **시나리오 3(잡 1 중복 발송 방지, 후속 작업으로 추가 실행)**: 잡 1(마감임박 알림, `NotificationService`
+  /`DeadlineSoonNotificationScheduler`)을 구현하면서 `DeadlineSoonNotificationConcurrencyTest`로
+  실행했다. 참여자 19명이 있는 임박 공구 1건에 배치를 10회 동시 호출한 결과 `DEADLINE_SOON` 알림은
+  항상 정확히 19건(참여자 수와 일치, 190건 아님)이었다 — B-1 패턴(별도 분산락 없이 `existsBy` +
+  유니크 제약)이 잡 2뿐 아니라 잡 1의 중복 실행 방지에도 그대로 유효함을 실측으로 확인했다. 이로써
+  "잡 1이 아직 구현되지 않아 실행하지 못했다"고 남겨뒀던 항목을 닫는다.
+- **잡 1 구현 중 추가로 발견한 반례(동시성과는 다른 종류)**: 후보 조회와 실제 발송 사이의 시간차로
+  인해, 조회 시점엔 `RECRUITING`이었지만 발송 시점엔 이미 `FINISHED`/`FAILED`로 바뀐 공구에도
+  "마감임박" 알림이 나갈 수 있는 결함을 적대적 검증으로 발견·재현했다. `GoodsFundingService`에
+  `findRecruiting(id)`(상태 재확인 조회)를 추가해 발송 직전 재검증하도록 수정했다. 상세 내용과
+  재현 시나리오는 `docs/experiments/adversarial-test-log.md`(이슈 #6 잡 1 절) 참고.
 
 ## 결정
 

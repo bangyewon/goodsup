@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -45,5 +46,10 @@ public class OrderService {
         Orders order = ordersRepository.save(request.toEntity(goodsFunding, user));
 
         return OrderResponse.from(order);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> findParticipantUserIds(Long goodsFundingId) {
+        return ordersRepository.findDistinctUserIdsByGoodsFundingId(goodsFundingId);
     }
 }

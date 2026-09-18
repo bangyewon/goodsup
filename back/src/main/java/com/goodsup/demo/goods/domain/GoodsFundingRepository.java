@@ -28,6 +28,12 @@ public interface GoodsFundingRepository extends JpaRepository<GoodsFunding, Long
             @Param("status") GoodsFundingStatus status,
             @Param("referenceTime") LocalDateTime referenceTime);
 
+    @Query("select gf.id from GoodsFunding gf where gf.status = :status and gf.deadlineAt between :now and :threshold")
+    List<Long> findIdsByStatusAndDeadlineAtBetween(
+            @Param("status") GoodsFundingStatus status,
+            @Param("now") LocalDateTime now,
+            @Param("threshold") LocalDateTime threshold);
+
     @Modifying(clearAutomatically = true)
     @Query("update GoodsFunding gf set gf.status = com.goodsup.demo.goods.domain.GoodsFundingStatus.FAILED "
             + "where gf.id in :ids and gf.status = com.goodsup.demo.goods.domain.GoodsFundingStatus.RECRUITING "
