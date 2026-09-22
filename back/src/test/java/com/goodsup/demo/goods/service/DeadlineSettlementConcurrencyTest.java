@@ -10,6 +10,8 @@ import com.goodsup.demo.notification.service.NotificationService;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
 import com.goodsup.demo.orders.service.OrderService;
+import com.goodsup.demo.payment.domain.OutboxEventRepository;
+import com.goodsup.demo.payment.domain.PaymentRepository;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -60,9 +62,15 @@ class DeadlineSettlementConcurrencyTest extends AbstractConcurrencyIntegrationTe
     private GoodsFundingService goodsFundingService;
     @Autowired
     private NotificationService notificationService;
+    @Autowired
+    private PaymentRepository paymentRepository;
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
 
     @AfterEach
     void cleanUp() {
+        paymentRepository.deleteAllInBatch();
+        outboxEventRepository.deleteAllInBatch();
         ordersRepository.deleteAllInBatch();
         notificationRepository.deleteAllInBatch();
         goodsFundingRepository.deleteAllInBatch();

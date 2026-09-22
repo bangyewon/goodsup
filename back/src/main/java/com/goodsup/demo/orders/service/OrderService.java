@@ -9,6 +9,9 @@ import com.goodsup.demo.orders.domain.Orders;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
 import com.goodsup.demo.orders.dto.response.OrderResponse;
+import com.goodsup.demo.payment.service.OutboxEventService;
+import com.goodsup.demo.payment.service.PaymentService;
+import com.goodsup.demo.payment.dto.ParticipantOrder;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,8 @@ public class OrderService {
     private final UserRepository userRepository;
     private final GoodsFundingRepository goodsFundingRepository;
     private final OrdersRepository ordersRepository;
+    private final PaymentService paymentService;
+    private final OutboxEventService outboxEventService;
 
     @Transactional
     public OrderResponse participateGoodsFunding(Long userId, Long goodsFundingId,ParticipateGoodsFundingRequest request) {
@@ -44,6 +49,14 @@ public class OrderService {
         goodsFunding.increaseQuantityAndCloseIfNeeded(request.quantity());
 
         Orders order = ordersRepository.save(request.toEntity(goodsFunding, user));
+
+        if (goodsFunding.getStatus() == GoodsFundingStatus.FINISHED) {
+            List<ParticipantOrder> participantOrders = ordersRepository.findAllByGoodsFundingId(goodsFundingId).stream()
+                    .map(o -> new ParticipantOrder(o.getId(), o.getQuantity() * goodsFunding.getPrice()))
+                    .toList();
+            paymentService.createRequestedPaymentsForFunding(participantOrders);
+            outboxEventService.recordPaymentFanOutRequested(goodsFundingId, LocalDateTime.now());
+        }
 
         return OrderResponse.from(order);
     }

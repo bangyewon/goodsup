@@ -50,4 +50,25 @@ public class Payment extends BaseEntity {
         this.amount = amount;
         this.status = PaymentStatus.REQUESTED;
     }
+
+    /**
+     * PG 승인 재시도(at-least-once)에서 이미 처리된 결제를 다시 처리하려는 시도는 정상적으로
+     * 발생하는 흐름이라, 호출자 버그를 알리는 예외 대신 boolean으로 중복 처리를 흡수한다.
+     */
+    public boolean markSucceeded(String pgTransactionId) {
+        if (this.status != PaymentStatus.REQUESTED) {
+            return false;
+        }
+        this.status = PaymentStatus.SUCCEEDED;
+        this.pgTransactionId = pgTransactionId;
+        return true;
+    }
+
+    public boolean markFailed() {
+        if (this.status != PaymentStatus.REQUESTED) {
+            return false;
+        }
+        this.status = PaymentStatus.FAILED;
+        return true;
+    }
 }
