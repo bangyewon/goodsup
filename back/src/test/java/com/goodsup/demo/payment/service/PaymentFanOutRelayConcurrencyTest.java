@@ -340,4 +340,48 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         // 참고 지표이므로 느슨한 상한만 assert한다(단일 로컬 MySQL Testcontainers, PG는 즉시 응답하는 fake).
         assertThat(p95).isLessThan(2000);
     }
+
+    /**
+     * ADR-0004 "향후 실측이 필요한 하위 질문" 후속: LEASE_TIMEOUT을 근거 있는 값으로 잡으려면
+     * "참여자 수가 늘수록 한 outbox row를 다 처리하는 데 걸리는 시간이 어떻게 늘어나는가"를 알아야
+     * 한다. chargeOne 루프는 순차 호출(PaymentFanOutRelayScheduler.processOne)이므로, 참여자 수(N)와
+     * PG 호출 1건당 지연(L)을 변수로 두고 총 처리시간 ≈ N × (L + 릴레이 자체 오버헤드) + 고정
+     * 오버헤드 형태의 선형 관계를 실측으로 확인한다. 실제 PG 왕복시간(L)은 아직 관찰 데이터가 없어
+     * 여러 값을 대입해보는 감도 분석(sensitivity analysis)이며, "이 프로젝트가 쓸 실제 PG의 L"을
+     * 측정한 것은 아니다 — 그건 PG SDK 연동 후 별도로 채워야 한다.
+     */
+    @Test
+    void A6_참여자_수와_PG_지연에_따른_처리_소요시간을_측정한다() {
+        int[] participantCounts = {5, 20, 50};
+        long[] simulatedLatenciesMillis = {0, 100};
+
+        List<String> rows = new ArrayList<>();
+        for (long latencyMillis : simulatedLatenciesMillis) {
+            for (int participantCount : participantCounts) {
+                fakePgPaymentGateway.reset();
+                fakePgPaymentGateway.withLatency(latencyMillis);
+
+                User host = createUser("fanout-host6-" + latencyMillis + "-" + participantCount);
+                GoodsFunding funding = createFunding(host, participantCount, 1);
+                Long fundingId = funding.getId();
+                preParticipate(fundingId, participantCount, "fanout-p6-" + latencyMillis + "-" + participantCount + "-");
+
+                LocalDateTime now = LocalDateTime.now();
+                long startNanos = System.nanoTime();
+                int processed = paymentFanOutRelayScheduler.runOnce(now, now.minusMinutes(10), "worker-a6");
+                long elapsedMillis = (System.nanoTime() - startNanos) / 1_000_000;
+
+                assertThat(processed).isEqualTo(1);
+                assertThat(paymentService.findRequestedPaymentIdsByGoodsFundingId(fundingId)).isEmpty();
+
+                double perParticipantMillis = elapsedMillis / (double) participantCount;
+                rows.add(String.format(
+                        "latency=%dms, N=%d -> 총 %dms (참여자당 %.1fms, 시뮬레이션 지연 대비 오버헤드 %.1fms)",
+                        latencyMillis, participantCount, elapsedMillis, perParticipantMillis,
+                        perParticipantMillis - latencyMillis));
+            }
+        }
+
+        log.info("A6 참여자수×PG지연 감도 분석 실측:\n{}", String.join("\n", rows));
+    }
 }

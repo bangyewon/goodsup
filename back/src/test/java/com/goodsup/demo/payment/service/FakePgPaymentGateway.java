@@ -21,10 +21,15 @@ class FakePgPaymentGateway implements PgPaymentGateway {
     private volatile Long blockedOrderId;
     private volatile CountDownLatch blockReleaseLatch;
     private volatile CountDownLatch blockStartedSignal;
+    private volatile long simulatedLatencyMillis;
 
     @Override
     public PgChargeResult charge(PgChargeRequest request) {
         callCounts.computeIfAbsent(request.orderId(), id -> new AtomicInteger()).incrementAndGet();
+
+        if (simulatedLatencyMillis > 0) {
+            sleepUninterruptibly(simulatedLatencyMillis);
+        }
 
         if (request.orderId().equals(blockedOrderId)) {
             if (blockStartedSignal != null) {
@@ -54,12 +59,18 @@ class FakePgPaymentGateway implements PgPaymentGateway {
         alwaysFailOrderIds.add(orderId);
     }
 
+    /** 이후 모든 charge 호출에 고정 지연을 부여한다(실제 PG 왕복시간을 흉내내기 위한 실측용 파라미터). */
+    void withLatency(long millis) {
+        this.simulatedLatencyMillis = millis;
+    }
+
     void reset() {
         callCounts.clear();
         alwaysFailOrderIds.clear();
         blockedOrderId = null;
         blockReleaseLatch = null;
         blockStartedSignal = null;
+        simulatedLatencyMillis = 0;
     }
 
     private void awaitUninterruptibly(CountDownLatch latch) {
@@ -73,6 +84,24 @@ class FakePgPaymentGateway implements PgPaymentGateway {
                 break;
             } catch (InterruptedException e) {
                 interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void sleepUninterruptibly(long millis) {
+        boolean interrupted = false;
+        long deadlineNanos = System.nanoTime() + millis * 1_000_000L;
+        long remainingMillis = millis;
+        while (remainingMillis > 0) {
+            try {
+                Thread.sleep(remainingMillis);
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+                remainingMillis = (deadlineNanos - System.nanoTime()) / 1_000_000L;
             }
         }
         if (interrupted) {
