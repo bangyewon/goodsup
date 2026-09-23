@@ -5,7 +5,6 @@ import com.goodsup.demo.payment.dto.PgChargeRequest;
 import com.goodsup.demo.payment.dto.PgChargeResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +19,10 @@ import java.util.UUID;
 @Slf4j
 public class PaymentFanOutRelayScheduler {
 
-    private static final int MAX_ATTEMPTS = 5;
-    private static final Duration LEASE_TIMEOUT = Duration.ofMinutes(5);
-    private static final Duration BASE_BACKOFF = Duration.ofSeconds(10);
-    private static final Duration MAX_BACKOFF = Duration.ofMinutes(10);
+    static final int MAX_ATTEMPTS = 5;
+    static final Duration LEASE_TIMEOUT = Duration.ofMinutes(5);
+    static final Duration BASE_BACKOFF = Duration.ofSeconds(10);
+    static final Duration MAX_BACKOFF = Duration.ofMinutes(10);
 
     private final OutboxEventService outboxEventService;
     private final PaymentService paymentService;
@@ -45,8 +44,8 @@ public class PaymentFanOutRelayScheduler {
                 if (processOne(outboxEventId, now, staleBefore, workerId)) {
                     processed++;
                 }
-            } catch (DataAccessException e) {
-                log.warn("결제 fan-out 처리 실패(락 경합/DB 오류): outboxEventId={}", outboxEventId, e);
+            } catch (RuntimeException e) {
+                log.warn("결제 fan-out 처리 실패: outboxEventId={}", outboxEventId, e);
             }
         }
         return processed;
