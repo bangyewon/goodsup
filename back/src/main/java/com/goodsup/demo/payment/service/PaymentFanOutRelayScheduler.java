@@ -19,8 +19,11 @@ import java.util.UUID;
 @Slf4j
 public class PaymentFanOutRelayScheduler {
 
-    static final int MAX_ATTEMPTS = 5;
-    static final Duration LEASE_TIMEOUT = Duration.ofMinutes(5);
+    // 근거: docs/adr/0004-payment-fanout-trigger-strategy.md "결정 — 재시도/lease 상수 확정" 참고.
+    // A6 실측(릴레이 오버헤드·N 비례 확인) + 사용자가 확정한 정책 가정(PG 타임아웃 5초,
+    // 최대 참여자 1000명, 재시도 SLA 약 1시간)으로부터 역산했다.
+    static final int MAX_ATTEMPTS = 11;
+    static final Duration LEASE_TIMEOUT = Duration.ofMinutes(90);
     static final Duration BASE_BACKOFF = Duration.ofSeconds(10);
     static final Duration MAX_BACKOFF = Duration.ofMinutes(10);
 

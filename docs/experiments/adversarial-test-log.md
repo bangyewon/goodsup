@@ -200,3 +200,10 @@ LEASE_TIMEOUT ≥ maxN × (PG 타임아웃 스펙 + 릴레이 오버헤드) × �
 외부 입력 두 개가 채워지기 전까지는 이 공식이 구체적인 숫자(예: 5분)로 확정될 수 없다. `MAX_ATTEMPTS`/
 `BASE_BACKOFF`/`MAX_BACKOFF`는 이번 지연 실측과는 다른 종류의 결정(장애 지속 시 얼마나 오래
 재시도를 허용할지의 비즈니스 SLA)이라 이번 실측 대상에서 제외했다 — 별도로 다뤄야 한다.
+
+**후속 확정**: 남은 입력값(PG 타임아웃 5초, maxN 1000명, 재시도 SLA 약 1시간)은 사용자가 정책으로
+직접 확정했다 — 실측 데이터가 아니라 사용자 결정이므로 이 실험 로그가 아니라 `docs/adr/
+0004-payment-fanout-trigger-strategy.md` "결정 — 재시도/lease 상수 확정" 절에 선택 근거와 함께
+기록했다. 그 결정과 위 실측 공식을 결합해 `MAX_ATTEMPTS=11`, `LEASE_TIMEOUT=90분`으로 확정하고
+`PaymentFanOutRelayScheduler`에 반영했다(`BASE_BACKOFF`/`MAX_BACKOFF`는 역산 결과 변경 불필요로
+확인되어 10초/10분 그대로 유지).
