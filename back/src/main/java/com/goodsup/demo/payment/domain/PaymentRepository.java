@@ -20,4 +20,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("select p.id from Payment p where p.orders.goodsFunding.id = :goodsFundingId and p.status = :status")
     List<Long> findIdsByOrdersGoodsFundingIdAndStatus(
             @Param("goodsFundingId") Long goodsFundingId, @Param("status") PaymentStatus status);
+
+    Optional<Payment> findByOrdersId(Long orderId);
 }

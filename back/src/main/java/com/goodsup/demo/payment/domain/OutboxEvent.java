@@ -89,6 +89,9 @@ public class OutboxEvent extends BaseEntity {
     }
 
     public void markProcessed() {
+        if (this.status == OutboxEventStatus.PROCESSED) {
+            return;
+        }
         if (this.status != OutboxEventStatus.PROCESSING) {
             throw new IllegalStateException("PROCESSING 상태에서만 완료 처리할 수 있습니다: id=" + this.id);
         }

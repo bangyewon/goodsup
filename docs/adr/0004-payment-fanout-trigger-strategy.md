@@ -78,16 +78,45 @@ Redis/Spring Batch/Spring Security/jqwik)에 없는 Kafka+Debezium+Kafka Connect
 
 ## 실측 결과
 
-*(실측 진행 후 채움 — `docs/experiments/adversarial-test-log.md`의 관련 항목 링크, 재현/미재현
-통계, 발견된 버그와 수정 내용을 여기 요약한다.)*
+### A. Outbox + 폴링 릴레이 (완전 실측 완료)
+
+`PaymentFanOutRelayConcurrencyTest`로 CLAUDE.md 절차(시나리오 생성 → 선정 → 통합 테스트 구현 →
+실측 비교 → 버그 수정 → 재검증)를 완주했다. 상세 표와 회고는
+`docs/experiments/adversarial-test-log.md`의 "PaymentFanOutRelayScheduler/OutboxEventService/
+PaymentService" 절 참고.
+
+- **정합성**: 5개 시나리오(A1~A5) 중 A2(lease 만료로 인한 재claim 경합) 1건이 실제로 재현됐다.
+  두 워커가 lease 재claim 윈도우에서 같은 결제를 PG에 중복 호출할 수 있고(실측: 동일 주문 PG
+  호출 2회), 뒤늦게 완료 처리하려는 워커가 이미 `PROCESSED`인 outbox row에 대해
+  `IllegalStateException`을 던져 `runOnce`의 `DataAccessException` catch를 뚫고 전파됐다.
+  `OutboxEvent.markProcessed()`를 멱등하게(이미 PROCESSED면 무시) 수정해 해결하고 동일 시나리오로
+  재검증 완료. PG 외부 호출 자체의 중복(at-least-once)은 이번 수정 대상이 아니며, 기존 설계대로
+  idempotency key(`"order-" + orderId`)에 위임한다 — 실제 PG SDK 연동 전까지는 검증되지 않은
+  가정으로 남는다(하단 "향후 실측이 필요한 하위 질문" 참고).
+  - A1(참여 레이스에도 outbox row 1건), A3(이미 성공한 결제는 재시도에서 재호출 안 됨), A4(재시도
+    소진 시 성공건 보존 + 실패건만 FAILED 확정)는 모두 재현되지 않음 — ADR-0001/0002가 이미
+    검증한 전략(비관적 락, 상태 필터링, 명시적 소진 카운트)이 결제 도메인에서도 그대로 유효했다.
+- **지연(참고 지표)**: claim~처리완료 지연, 로컬 MySQL Testcontainers + 즉시 응답하는 fake PG
+  기준, n=20, p50=25ms, p95=40~65ms(2회 실측). 실제 PG 왕복 지연이 포함되지 않은 하한선이므로
+  프로덕션 SLA 판단 근거로는 쓰지 않는다.
+- **테스트 하네스 함정 2건도 이 과정에서 발견·수정**: (1) 실측 테스트 자체의 스레드 오케스트레이션
+  데드락, (2) 결제 fan-out 기능 추가 이전에 작성된 `OrderConcurrencyIntegrationTest`가 새로 생긴
+  Payment/outbox 부수효과를 정리하지 않아 전체 스위트에서만 드러난 교차 오염. 상세는 로그 참고.
+
+### B. Outbox + CDC 릴레이 (미실행)
+
+아직 실측하지 않았다. A안 실측을 CLAUDE.md 절차대로 먼저 완주한 뒤 진행하기로 순서를 정했다.
 
 ## 결정
 
-*(실측 후 채움.)*
+A안(Outbox + 폴링 릴레이)은 정합성 실측을 통과했고(발견된 버그는 수정·재검증 완료), 신규 인프라
+없이 기존 기술 스택(Spring Batch/MySQL 비관적 락)만으로 구현된다는 이점이 있다. 다만 B안(CDC)과의
+정식 비교 없이는 "폴링 릴레이 채택"을 최종 확정할 수 없다 — 이 ADR의 비교 대상 자체가 A/B 중
+릴레이 방식을 고르는 것이었으므로, B 실측 전까지 결정은 보류한다.
 
 ## 트레이드오프
 
-*(실측 후 채움.)*
+*(B 실측 후 채움 — A 단독 트레이드오프는 위 "실측 결과" 절 참고.)*
 
 ## 참고 — 향후 실측이 필요한 하위 질문
 
