@@ -14,7 +14,10 @@ tools: ["Read", "Grep", "Glob", "Write", "Edit", "Bash"]
 
 - `back/src/main/` 아래 파일은 어떤 이유로도 **Write/Edit하지 않는다.** 버그를 발견해도 직접 고치지 않는다.
 - 수정은 메인 세션(사람 또는 일반 Claude Code 대화)의 몫이다. 당신은 "재현되는 버그"와 "재현 안 되는 시나리오" 목록만 근거 있게 남긴다.
-- 허용되는 쓰기 대상은 딱 두 곳: `back/src/test/` 아래의 재현 테스트 코드, `docs/experiments/adversarial-test-log.md`.
+- 허용되는 쓰기 대상은 딱 두 곳: `back/src/test/` 아래의 재현 테스트 코드, `docs/experiments/adversarial-test-log-*.md`
+  중 대상 로직이 속한 이슈의 주제 파일(예: 결제 관련이면 `adversarial-test-log-payment.md`). 해당 이슈를
+  다루는 주제 파일이 아직 없으면 새로 만들고 `docs/experiments/adversarial-test-log.md`(인덱스)의
+  "주제별 로그" 목록에 한 줄 등록한다 — 인덱스 파일 자체에 발견 기록을 직접 쓰지 않는다.
 
 ## 절차 (CLAUDE.md "AI를 검증 파트너로 활용" 1~4, 6번에 대응)
 
@@ -41,7 +44,8 @@ tools: ["Read", "Grep", "Glob", "Write", "Edit", "Bash"]
 - 가설(문제가 발생할 것이라 예상)과 실제 실행 결과를 비교한다. jqwik이 반례를 찾으면(shrink된 최소 실패 케이스) 해당 케이스를 표에 그대로 기록한다.
 
 ### 5. 기록 (수정하지 않고 여기서 멈춘다)
-`docs/experiments/adversarial-test-log.md`의 "발견 기록" 표 형식 그대로 각 시나리오를 추가한다:
+대상 로직이 속한 이슈의 주제 파일(`docs/experiments/adversarial-test-log-<주제>.md`)에 아래 표
+형식으로 각 시나리오를 추가한다(주제 파일 선정·신규 생성 기준은 위 "절대 규칙" 참고):
 
 | # | 시나리오 (AI가 제안) | 실제 재현 여부 | 원인 | 수정 내용 | 관련 PR/커밋 |
 
@@ -59,7 +63,7 @@ tools: ["Read", "Grep", "Glob", "Write", "Edit", "Bash"]
 - 생성한 시나리오: N개
 - 재현 시도: M개 (재현됨 K개 / 재현 안 됨 M-K개)
 - 재현된 버그: (목록, 심각도 요약)
-- 로그 갱신: docs/experiments/adversarial-test-log.md
+- 로그 갱신: docs/experiments/adversarial-test-log-<주제>.md
 - 다음: 메인 세션에서 수정 후 이 에이전트를 다시 호출해 6번(재검증) 진행
 ```
 

@@ -136,7 +136,7 @@ Testcontainers MySQL 8.0 기준으로 실행했다. A-3, B-2는 A-1/A-2·B-1만�
   인해, 조회 시점엔 `RECRUITING`이었지만 발송 시점엔 이미 `FINISHED`/`FAILED`로 바뀐 공구에도
   "마감임박" 알림이 나갈 수 있는 결함을 적대적 검증으로 발견·재현했다. `GoodsFundingService`에
   `findRecruiting(id)`(상태 재확인 조회)를 추가해 발송 직전 재검증하도록 수정했다. 상세 내용과
-  재현 시나리오는 `docs/experiments/adversarial-test-log.md`(이슈 #6 잡 1 절) 참고.
+  재현 시나리오는 `docs/experiments/adversarial-test-log-settlement.md`(마감임박 알림 절) 참고.
 
 ## 결정
 

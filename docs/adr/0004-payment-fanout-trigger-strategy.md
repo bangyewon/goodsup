@@ -64,7 +64,7 @@ Redis/Spring Batch/Spring Security/jqwik)에 없는 Kafka+Debezium+Kafka Connect
 
 ## 실험 설계
 
-상세 시나리오는 구현 단계에서 `docs/experiments/adversarial-test-log.md`에 채워 넣는다(CLAUDE.md
+상세 시나리오는 구현 단계에서 `docs/experiments/adversarial-test-log-payment.md`에 채워 넣는다(CLAUDE.md
 "AI를 검증 파트너로 활용" 프로세스 — 재현 여부와 무관하게 모든 시나리오를 기록). 다루는 축:
 
 - **정합성(A 중심)**: 두 릴레이 인스턴스 동시 claim 시 중복 결제 여부, claim 커밋 후 결제 루프
@@ -82,7 +82,7 @@ Redis/Spring Batch/Spring Security/jqwik)에 없는 Kafka+Debezium+Kafka Connect
 
 `PaymentFanOutRelayConcurrencyTest`로 CLAUDE.md 절차(시나리오 생성 → 선정 → 통합 테스트 구현 →
 실측 비교 → 버그 수정 → 재검증)를 완주했다. 상세 표와 회고는
-`docs/experiments/adversarial-test-log.md`의 "PaymentFanOutRelayScheduler/OutboxEventService/
+`docs/experiments/adversarial-test-log-payment.md`의 "PaymentFanOutRelayScheduler/OutboxEventService/
 PaymentService" 절 참고.
 
 - **정합성**: 5개 시나리오(A1~A5) 중 A2(lease 만료로 인한 재claim 경합) 1건이 실제로 재현됐다.
@@ -118,7 +118,7 @@ A안(Outbox + 폴링 릴레이)은 정합성 실측을 통과했고(발견된 �
 
 `PaymentFanOutRelayScheduler`의 이 네 상수는 원래 실측 근거 없는 임시 기본값(`MAX_ATTEMPTS=5`,
 `LEASE_TIMEOUT=5분`, `BASE_BACKOFF=10초`, `MAX_BACKOFF=10분`)이었다. A6(`docs/experiments/
-adversarial-test-log.md` "후속: LEASE_TIMEOUT 근거 마련을 위한 감도 분석")이 "릴레이 자체
+adversarial-test-log-payment.md` "후속: LEASE_TIMEOUT 근거 마련을 위한 감도 분석")이 "릴레이 자체
 오버헤드는 참여자당 약 20~25ms이고 처리시간은 N에 선형 비례한다"는 것까지는 실측으로 확인했지만,
 공식을 구체적인 숫자로 채우려면 실측으로는 못 메우는 입력값 세 개가 더 필요했다. 이건 관찰 데이터가
 아니라 **사용자가 명시적으로 결정한 정책 가정**이므로, 실측 결과와 섞이지 않도록 근거를 따로

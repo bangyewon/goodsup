@@ -94,7 +94,7 @@
 3. 무통장입금 입금 기한이 지나 `FAILED`로 확정된 결제가 ADR-0005의 취소·환불 경로로 올바르게
    이어지는가.
 
-재현 여부와 무관하게 모든 시나리오를 `docs/experiments/adversarial-test-log.md`에 기록한다.
+재현 여부와 무관하게 모든 시나리오를 `docs/experiments/adversarial-test-log-payment.md`에 기록한다.
 
 ## 결정 (초안)
 
