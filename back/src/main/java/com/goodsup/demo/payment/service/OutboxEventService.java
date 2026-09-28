@@ -48,6 +48,13 @@ public class OutboxEventService {
     }
 
     @Transactional
+    public void markPendingRecheck(Long outboxEventId, LocalDateTime now, Duration recheckInterval) {
+        OutboxEvent outboxEvent = outboxEventRepository.findByIdForUpdate(outboxEventId)
+                .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
+        outboxEvent.markPendingRecheck(now, recheckInterval);
+    }
+
+    @Transactional
     public boolean markPendingForRetry(Long outboxEventId, String error, LocalDateTime now,
                                         Duration baseBackoff, Duration maxBackoff, int maxAttempts) {
         OutboxEvent outboxEvent = outboxEventRepository.findByIdForUpdate(outboxEventId)

@@ -18,6 +18,7 @@ class FakePgPaymentGateway implements PgPaymentGateway {
 
     private final Map<Long, AtomicInteger> callCounts = new ConcurrentHashMap<>();
     private final Set<Long> alwaysFailOrderIds = ConcurrentHashMap.newKeySet();
+    private final Set<Long> alwaysPendingOrderIds = ConcurrentHashMap.newKeySet();
     private volatile Long blockedOrderId;
     private volatile CountDownLatch blockReleaseLatch;
     private volatile CountDownLatch blockStartedSignal;
@@ -41,6 +42,9 @@ class FakePgPaymentGateway implements PgPaymentGateway {
         if (alwaysFailOrderIds.contains(request.orderId())) {
             return PgChargeResult.failure("의도적 실패(테스트)");
         }
+        if (alwaysPendingOrderIds.contains(request.orderId())) {
+            return PgChargeResult.pending();
+        }
         return PgChargeResult.success("FAKE-PG-" + UUID.randomUUID());
     }
 
@@ -59,6 +63,16 @@ class FakePgPaymentGateway implements PgPaymentGateway {
         alwaysFailOrderIds.add(orderId);
     }
 
+    /** 무통장입금 입금 대기처럼, 이후 이 orderId에 대한 charge 호출은 계속 PENDING을 반환한다. */
+    void alwaysPending(Long orderId) {
+        alwaysPendingOrderIds.add(orderId);
+    }
+
+    /** PENDING을 반환하던 orderId를 더 이상 PENDING으로 취급하지 않는다(예: "입금 확인됨" 시뮬레이션). */
+    void stopPending(Long orderId) {
+        alwaysPendingOrderIds.remove(orderId);
+    }
+
     /** 이후 모든 charge 호출에 고정 지연을 부여한다(실제 PG 왕복시간을 흉내내기 위한 실측용 파라미터). */
     void withLatency(long millis) {
         this.simulatedLatencyMillis = millis;
@@ -67,6 +81,7 @@ class FakePgPaymentGateway implements PgPaymentGateway {
     void reset() {
         callCounts.clear();
         alwaysFailOrderIds.clear();
+        alwaysPendingOrderIds.clear();
         blockedOrderId = null;
         blockReleaseLatch = null;
         blockStartedSignal = null;

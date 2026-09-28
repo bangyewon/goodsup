@@ -5,6 +5,7 @@ import com.goodsup.demo.goods.domain.GoodsFunding;
 import com.goodsup.demo.goods.domain.GoodsFundingRepository;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.payment.domain.OutboxEventRepository;
 import com.goodsup.demo.payment.domain.PaymentRepository;
 import com.goodsup.demo.user.domain.User;
@@ -102,7 +103,7 @@ class OrderConcurrencyIntegrationTest extends AbstractConcurrencyIntegrationTest
                     startSignal.await();
                     try {
                         orderService.participateGoodsFunding(
-                                participantId,goodsFundingId, new ParticipateGoodsFundingRequest( 1));
+                                participantId,goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
                         successCount.incrementAndGet();
                     } catch (Exception ignored) {
                         // 재고 소진에 따른 정상적인 거절은 무시한다.

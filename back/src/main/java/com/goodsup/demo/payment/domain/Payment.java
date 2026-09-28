@@ -38,6 +38,10 @@ public class Payment extends BaseEntity {
     private int amount;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", nullable = false)
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
@@ -45,16 +49,13 @@ public class Payment extends BaseEntity {
     private String pgTransactionId;
 
     @Builder
-    private Payment(Orders orders, int amount) {
+    private Payment(Orders orders, int amount, PaymentMethod paymentMethod) {
         this.orders = orders;
         this.amount = amount;
+        this.paymentMethod = paymentMethod;
         this.status = PaymentStatus.REQUESTED;
     }
 
-    /**
-     * PG 승인 재시도(at-least-once)에서 이미 처리된 결제를 다시 처리하려는 시도는 정상적으로
-     * 발생하는 흐름이라, 호출자 버그를 알리는 예외 대신 boolean으로 중복 처리를 흡수한다.
-     */
     public boolean markSucceeded(String pgTransactionId) {
         if (this.status != PaymentStatus.REQUESTED) {
             return false;

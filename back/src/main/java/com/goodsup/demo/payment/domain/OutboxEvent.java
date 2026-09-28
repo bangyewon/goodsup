@@ -98,6 +98,19 @@ public class OutboxEvent extends BaseEntity {
         this.status = OutboxEventStatus.PROCESSED;
     }
 
+    /**
+     * PG가 아직 결과를 확정하지 않은 경우(예: 무통장입금 입금 대기, ADR-0006 설계 축 1)에 사용한다.
+     * 시도가 실패한 게 아니라 아직 안 끝난 것이므로 {@code attemptCount}/{@code lastError}를
+     * 건드리지 않고 재확인 시각만 미룬다.
+     */
+    public void markPendingRecheck(LocalDateTime now, Duration recheckInterval) {
+        if (this.status != OutboxEventStatus.PROCESSING) {
+            throw new IllegalStateException("PROCESSING 상태에서만 재확인 대기로 전환할 수 있습니다: id=" + this.id);
+        }
+        this.status = OutboxEventStatus.PENDING;
+        this.nextAttemptAt = now.plusSeconds(recheckInterval.toSeconds());
+    }
+
     public void markPendingForRetry(String error, LocalDateTime now, Duration baseBackoff, Duration maxBackoff, int maxAttempts) {
         if (this.status != OutboxEventStatus.PROCESSING) {
             throw new IllegalStateException("PROCESSING 상태에서만 재시도 대기로 전환할 수 있습니다: id=" + this.id);

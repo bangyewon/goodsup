@@ -5,6 +5,7 @@ import com.goodsup.demo.goods.domain.GoodsFunding;
 import com.goodsup.demo.goods.domain.GoodsFundingRepository;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.orders.service.OrderService;
 import com.goodsup.demo.payment.domain.OutboxEvent;
 import com.goodsup.demo.payment.domain.OutboxEventRepository;
@@ -113,7 +114,7 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         for (int i = 0; i < count; i++) {
             User participant = createUser(prefix + i);
             orderService.participateGoodsFunding(
-                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1));
+                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
         }
     }
 
@@ -150,7 +151,7 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
                     startSignal.await();
                     try {
                         orderService.participateGoodsFunding(
-                                userId, fundingId, new ParticipateGoodsFundingRequest(1));
+                                userId, fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
                     } catch (Exception ignored) {
                         // 재고 소진/마감에 따른 정상적인 거절은 무시한다.
                     }
@@ -182,9 +183,9 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         Long fundingId = funding.getId();
 
         Long orderId1 = orderService.participateGoodsFunding(
-                createUser("fanout-p2-1").getId(), fundingId, new ParticipateGoodsFundingRequest(1)).id();
+                createUser("fanout-p2-1").getId(), fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD)).id();
         Long orderId2 = orderService.participateGoodsFunding(
-                createUser("fanout-p2-2").getId(), fundingId, new ParticipateGoodsFundingRequest(1)).id();
+                createUser("fanout-p2-2").getId(), fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD)).id();
 
         LocalDateTime claimTime = LocalDateTime.now();
         LocalDateTime farPast = claimTime.minusMinutes(10);
@@ -262,9 +263,9 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         Long fundingId = funding.getId();
 
         Long orderIdSucceeds = orderService.participateGoodsFunding(
-                createUser("fanout-p3-1").getId(), fundingId, new ParticipateGoodsFundingRequest(1)).id();
+                createUser("fanout-p3-1").getId(), fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD)).id();
         Long orderIdAlwaysFails = orderService.participateGoodsFunding(
-                createUser("fanout-p3-2").getId(), fundingId, new ParticipateGoodsFundingRequest(1)).id();
+                createUser("fanout-p3-2").getId(), fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD)).id();
         fakePgPaymentGateway.alwaysFail(orderIdAlwaysFails);
 
         LocalDateTime now = LocalDateTime.now();
@@ -310,6 +311,65 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
     }
 
     @Test
+    void B1_PENDING_결제는_재시도_예산을_소모하지_않고_재확인만_예약되다가_입금_확인되면_정상_종결된다() {
+        User host = createUser("fanout-host-b1");
+        GoodsFunding funding = createFunding(host, 2, 1);
+        Long fundingId = funding.getId();
+
+        Long orderIdSucceeds = orderService.participateGoodsFunding(
+                createUser("fanout-pb1-1").getId(), fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD)).id();
+        Long orderIdPending = orderService.participateGoodsFunding(
+                createUser("fanout-pb1-2").getId(), fundingId,
+                new ParticipateGoodsFundingRequest(1, PaymentMethod.VIRTUAL_ACCOUNT)).id();
+        fakePgPaymentGateway.alwaysPending(orderIdPending);
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime farPast = now.minusMinutes(10);
+
+        // 참여 시점에 고른 결제수단이 Orders -> Payment로 그대로 전달됐는지 확인한다.
+        assertThat(paymentRepository.findByOrdersId(orderIdSucceeds).orElseThrow().getPaymentMethod())
+                .isEqualTo(PaymentMethod.CARD);
+        assertThat(paymentRepository.findByOrdersId(orderIdPending).orElseThrow().getPaymentMethod())
+                .isEqualTo(PaymentMethod.VIRTUAL_ACCOUNT);
+
+        // 1차 시도: 카드는 즉시 성공, 무통장입금은 PENDING이라 outbox row는 아직 완결되지 않는다.
+        int firstAttemptProcessed = paymentFanOutRelayScheduler.runOnce(now, farPast, "worker-b1");
+        assertThat(firstAttemptProcessed).isZero();
+        assertThat(paymentRepository.findByOrdersId(orderIdSucceeds).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.SUCCEEDED);
+        assertThat(paymentRepository.findByOrdersId(orderIdPending).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.REQUESTED);
+
+        OutboxEvent afterFirstAttempt = fanOutEventOf(fundingId);
+        assertThat(afterFirstAttempt.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        // ADR-0006 축 1 핵심: PENDING은 실패가 아니므로 재시도 예산을 소모하지 않는다.
+        assertThat(afterFirstAttempt.getAttemptCount()).isZero();
+        assertThat(afterFirstAttempt.getNextAttemptAt())
+                .isEqualTo(now.plusSeconds(PaymentFanOutRelayScheduler.PENDING_RECHECK_INTERVAL.toSeconds()));
+
+        // 재확인 간격만큼 가상 시계를 이동시켜 여러 사이클을 돌려도(입금이 계속 안 된 상태) 여전히
+        // attemptCount는 0으로 유지되고, 이미 성공한 결제는 다시 호출되지 않는다.
+        LocalDateTime secondCheck = now.plusSeconds(PaymentFanOutRelayScheduler.PENDING_RECHECK_INTERVAL.toSeconds() + 1);
+        paymentFanOutRelayScheduler.runOnce(secondCheck, farPast, "worker-b1");
+        assertThat(fanOutEventOf(fundingId).getAttemptCount()).isZero();
+        assertThat(fakePgPaymentGateway.callCountFor(orderIdSucceeds)).isEqualTo(1);
+        assertThat(fakePgPaymentGateway.callCountFor(orderIdPending)).isEqualTo(2);
+
+        // 입금이 확인됐다고 가정(웹훅 대신 다음 폴링에서 성공으로 바뀌는 상황을 시뮬레이션)하고
+        // 재확인 사이클을 한 번 더 돌리면 정상 종결된다.
+        fakePgPaymentGateway.stopPending(orderIdPending);
+        LocalDateTime thirdCheck = secondCheck.plusSeconds(PaymentFanOutRelayScheduler.PENDING_RECHECK_INTERVAL.toSeconds() + 1);
+        int thirdAttemptProcessed = paymentFanOutRelayScheduler.runOnce(thirdCheck, farPast, "worker-b1");
+
+        assertThat(thirdAttemptProcessed).isEqualTo(1);
+        assertThat(paymentRepository.findByOrdersId(orderIdPending).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.SUCCEEDED);
+        OutboxEvent finalEvent = fanOutEventOf(fundingId);
+        assertThat(finalEvent.getStatus()).isEqualTo(OutboxEventStatus.PROCESSED);
+        assertThat(finalEvent.getAttemptCount()).isZero(); // 끝까지 재시도 예산을 한 번도 소모하지 않았다.
+    }
+
+    @Test
     void A5_claim부터_처리완료까지_지연을_측정한다() {
         int sampleSize = 20;
         List<Long> latenciesMillis = new ArrayList<>();
@@ -320,7 +380,7 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
             Long fundingId = funding.getId();
             // 참여 1건으로 즉시 목표 달성 -> 같은 트랜잭션에서 Payment/outbox row 생성.
             orderService.participateGoodsFunding(
-                    createUser("fanout-p5-" + i).getId(), fundingId, new ParticipateGoodsFundingRequest(1));
+                    createUser("fanout-p5-" + i).getId(), fundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
 
             LocalDateTime now = LocalDateTime.now();
             long startNanos = System.nanoTime();
@@ -344,7 +404,7 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
     /**
      * ADR-0004 "향후 실측이 필요한 하위 질문" 후속: LEASE_TIMEOUT을 근거 있는 값으로 잡으려면
      * "참여자 수가 늘수록 한 outbox row를 다 처리하는 데 걸리는 시간이 어떻게 늘어나는가"를 알아야
-     * 한다. chargeOne 루프는 순차 호출(PaymentFanOutRelayScheduler.processOne)이므로, 참여자 수(N)와
+     * 한다. charge 루프는 순차 호출(PaymentFanOutRelayScheduler.processOne)이므로, 참여자 수(N)와
      * PG 호출 1건당 지연(L)을 변수로 두고 총 처리시간 ≈ N × (L + 릴레이 자체 오버헤드) + 고정
      * 오버헤드 형태의 선형 관계를 실측으로 확인한다. 실제 PG 왕복시간(L)은 아직 관찰 데이터가 없어
      * 여러 값을 대입해보는 감도 분석(sensitivity analysis)이며, "이 프로젝트가 쓸 실제 PG의 L"을

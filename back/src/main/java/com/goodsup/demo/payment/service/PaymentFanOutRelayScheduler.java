@@ -1,8 +1,6 @@
 package com.goodsup.demo.payment.service;
 
-import com.goodsup.demo.payment.dto.PaymentChargeSnapshot;
-import com.goodsup.demo.payment.dto.PgChargeRequest;
-import com.goodsup.demo.payment.dto.PgChargeResult;
+import com.goodsup.demo.payment.domain.ChargeOutcome;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,17 +17,16 @@ import java.util.UUID;
 @Slf4j
 public class PaymentFanOutRelayScheduler {
 
-    // 근거: docs/adr/0004-payment-fanout-trigger-strategy.md "결정 — 재시도/lease 상수 확정" 참고.
-    // A6 실측(릴레이 오버헤드·N 비례 확인) + 사용자가 확정한 정책 가정(PG 타임아웃 5초,
-    // 최대 참여자 1000명, 재시도 SLA 약 1시간)으로부터 역산했다.
     static final int MAX_ATTEMPTS = 11;
     static final Duration LEASE_TIMEOUT = Duration.ofMinutes(90);
     static final Duration BASE_BACKOFF = Duration.ofSeconds(10);
     static final Duration MAX_BACKOFF = Duration.ofMinutes(10);
 
+    static final Duration PENDING_RECHECK_INTERVAL = Duration.ofMinutes(30);
+
     private final OutboxEventService outboxEventService;
     private final PaymentService paymentService;
-    private final PgPaymentGateway pgPaymentGateway;
+    private final PaymentChargeExecutor paymentChargeExecutor;
 
     @Scheduled(cron = "${goodsup.payment.fanout-relay.cron:0 * * * * *}")
     public void run() {
@@ -39,7 +36,7 @@ public class PaymentFanOutRelayScheduler {
         log.info("결제 fan-out 릴레이 완료: workerId={}, 처리 완료 {}건", workerId, processed);
     }
 
-    public int runOnce(LocalDateTime now, LocalDateTime staleBefore, String workerId) {
+    int runOnce(LocalDateTime now, LocalDateTime staleBefore, String workerId) {
         List<Long> candidateIds = outboxEventService.findClaimableCandidateIds(now, staleBefore);
         int processed = 0;
         for (Long outboxEventId : candidateIds) {
@@ -61,16 +58,26 @@ public class PaymentFanOutRelayScheduler {
         }
 
         List<Long> paymentIds = paymentService.findRequestedPaymentIdsByGoodsFundingId(goodsFundingId.get());
-        boolean allTerminal = true;
+        boolean allDone = true;
+        boolean anyAwaitingPg = false;
         for (Long paymentId : paymentIds) {
-            if (!chargeOne(paymentId)) {
-                allTerminal = false;
+            ChargeOutcome outcome = paymentChargeExecutor.charge(paymentId);
+            if (outcome != ChargeOutcome.DONE) {
+                allDone = false;
+            }
+            if (outcome == ChargeOutcome.AWAITING_PG) {
+                anyAwaitingPg = true;
             }
         }
 
-        if (allTerminal) {
+        if (allDone) {
             outboxEventService.markProcessed(outboxEventId);
             return true;
+        }
+
+        if (anyAwaitingPg) {
+            outboxEventService.markPendingRecheck(outboxEventId, now, PENDING_RECHECK_INTERVAL);
+            return false;
         }
 
         boolean terminallyFailed = outboxEventService.markPendingForRetry(
@@ -80,29 +87,5 @@ public class PaymentFanOutRelayScheduler {
             log.error("결제 fan-out 최대 재시도 초과: outboxEventId={}, goodsFundingId={}", outboxEventId, goodsFundingId.get());
         }
         return false;
-    }
-
-    /**
-     * @return 이 결제가 최종적으로 터미널 상태(SUCCEEDED)에 도달했으면 true.
-     */
-    private boolean chargeOne(Long paymentId) {
-        PaymentChargeSnapshot snapshot = paymentService.loadForCharge(paymentId);
-        if (snapshot.alreadyTerminal()) {
-            return true;
-        }
-        String idempotencyKey = "order-" + snapshot.orderId();
-        try {
-            PgChargeResult result = pgPaymentGateway.charge(
-                    new PgChargeRequest(snapshot.orderId(), snapshot.amount(), idempotencyKey));
-            if (result.success()) {
-                paymentService.markSucceeded(paymentId, result.pgTransactionId());
-                return true;
-            }
-            log.warn("PG 결제 승인 실패: paymentId={}, error={}", paymentId, result.errorMessage());
-            return false;
-        } catch (RuntimeException e) {
-            log.warn("PG 결제 승인 호출 중 예외: paymentId={}", paymentId, e);
-            return false;
-        }
     }
 }

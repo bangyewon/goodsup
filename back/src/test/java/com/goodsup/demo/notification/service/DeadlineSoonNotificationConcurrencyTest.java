@@ -7,6 +7,7 @@ import com.goodsup.demo.notification.domain.NotificationRepository;
 import com.goodsup.demo.notification.domain.NotificationType;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.orders.service.OrderService;
 import com.goodsup.demo.payment.domain.OutboxEventRepository;
 import com.goodsup.demo.payment.domain.PaymentRepository;
@@ -90,7 +91,7 @@ class DeadlineSoonNotificationConcurrencyTest extends AbstractConcurrencyIntegra
         for (int i = 0; i < PARTICIPANTS; i++) {
             User participant = createUser("p" + i);
             orderService.participateGoodsFunding(
-                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1));
+                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
         }
         List<Long> participantIds = orderService.findParticipantUserIds(goodsFundingId);
 

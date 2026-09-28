@@ -7,6 +7,7 @@ import com.goodsup.demo.goods.domain.GoodsFundingStatus;
 import com.goodsup.demo.orders.domain.Orders;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.orders.dto.response.OrderResponse;
 import com.goodsup.demo.payment.service.OutboxEventService;
 import com.goodsup.demo.payment.service.PaymentService;
@@ -72,7 +73,7 @@ class OrderServiceTest {
     }
 
     private ParticipateGoodsFundingRequest request(int quantity) {
-        return new ParticipateGoodsFundingRequest(quantity);
+        return new ParticipateGoodsFundingRequest(quantity, PaymentMethod.CARD);
     }
 
     @Test

@@ -52,7 +52,7 @@ public class OrderService {
 
         if (goodsFunding.getStatus() == GoodsFundingStatus.FINISHED) {
             List<ParticipantOrder> participantOrders = ordersRepository.findAllByGoodsFundingId(goodsFundingId).stream()
-                    .map(o -> new ParticipantOrder(o.getId(), o.getQuantity() * goodsFunding.getPrice()))
+                    .map(o -> new ParticipantOrder(o.getId(), o.getQuantity() * goodsFunding.getPrice(), o.getPaymentMethod()))
                     .toList();
             paymentService.createRequestedPaymentsForFunding(participantOrders);
             outboxEventService.recordPaymentFanOutRequested(goodsFundingId, LocalDateTime.now());

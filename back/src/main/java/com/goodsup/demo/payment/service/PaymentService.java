@@ -27,6 +27,7 @@ public class PaymentService {
             Payment payment = Payment.builder()
                     .orders(ordersRepository.getReferenceById(participantOrder.orderId()))
                     .amount(participantOrder.amount())
+                    .paymentMethod(participantOrder.paymentMethod())
                     .build();
             paymentRepository.save(payment);
         }
@@ -42,7 +43,7 @@ public class PaymentService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
         return new PaymentChargeSnapshot(payment.getId(), payment.getOrders().getId(), payment.getAmount(),
-                payment.getStatus() != PaymentStatus.REQUESTED);
+                payment.getPaymentMethod(), payment.getStatus() != PaymentStatus.REQUESTED);
     }
 
     @Transactional
