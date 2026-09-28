@@ -11,11 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
-/**
- * ADR-0002 실험용 정산 후보(A-1/A-2)가 공통으로 쓰는 "실패 알림 생성" 로직.
- * Notification(user_id, goods_funding_id, type) 유니크 제약이 최종 방어선이고,
- * existsBy 체크는 정상 경로에서 불필요한 insert 시도를 줄이기 위한 사전 체크일 뿐이다.
- */
 @Component
 @RequiredArgsConstructor
 public class SettlementNotifier {
