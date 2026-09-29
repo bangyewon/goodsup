@@ -2,7 +2,6 @@ package com.goodsup.demo.payment.service;
 
 import com.goodsup.demo.common.apiResponse.ErrorCode;
 import com.goodsup.demo.common.exception.GoodsException;
-import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.payment.domain.Payment;
 import com.goodsup.demo.payment.domain.PaymentRepository;
 import com.goodsup.demo.payment.domain.PaymentStatus;
@@ -23,13 +22,13 @@ import java.util.List;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final OrdersRepository ordersRepository;
 
     @Transactional
-    public void createRequestedPaymentsForFunding(List<ParticipantOrder> participantOrders) {
+    public void createRequestedPaymentsForFunding(Long goodsFundingId, List<ParticipantOrder> participantOrders) {
         for (ParticipantOrder participantOrder : participantOrders) {
             Payment payment = Payment.builder()
-                    .orders(ordersRepository.getReferenceById(participantOrder.orderId()))
+                    .orderId(participantOrder.orderId())
+                    .goodsFundingId(goodsFundingId)
                     .amount(participantOrder.amount())
                     .paymentMethod(participantOrder.paymentMethod())
                     .build();
@@ -39,14 +38,14 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public List<Long> findRequestedPaymentIdsByGoodsFundingId(Long goodsFundingId) {
-        return paymentRepository.findIdsByOrdersGoodsFundingIdAndStatus(goodsFundingId, PaymentStatus.REQUESTED);
+        return paymentRepository.findIdsByGoodsFundingIdAndStatus(goodsFundingId, PaymentStatus.REQUESTED);
     }
 
     @Transactional(readOnly = true)
     public PaymentChargeSnapshot loadForCharge(Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
-        return new PaymentChargeSnapshot(payment.getId(), payment.getOrders().getId(), payment.getAmount(),
+        return new PaymentChargeSnapshot(payment.getId(), payment.getOrderId(), payment.getAmount(),
                 payment.getPaymentMethod(), payment.getStatus() != PaymentStatus.REQUESTED);
     }
 
@@ -67,14 +66,14 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public PaymentResponse getByOrderId(Long orderId) {
-        Payment payment = paymentRepository.findByOrdersId(orderId)
+        Payment payment = paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
         return PaymentResponse.from(payment);
     }
 
     @Transactional
     public void applyWebhookResult(Long orderId, PgChargeStatus status, String pgTransactionId) {
-        Long paymentId = paymentRepository.findByOrdersId(orderId)
+        Long paymentId = paymentRepository.findByOrderId(orderId)
                 .map(Payment::getId)
                 .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)

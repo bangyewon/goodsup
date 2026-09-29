@@ -34,4 +34,13 @@ public class UserService {
             throw new GoodsException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
     }
+
+    public User getUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
+    }
+
+    public User getReference(Long userId) {
+        return userRepository.getReferenceById(userId);
+    }
 }

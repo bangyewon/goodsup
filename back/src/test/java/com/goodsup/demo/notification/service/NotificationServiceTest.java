@@ -6,7 +6,7 @@ import com.goodsup.demo.notification.domain.Notification;
 import com.goodsup.demo.notification.domain.NotificationRepository;
 import com.goodsup.demo.notification.domain.NotificationType;
 import com.goodsup.demo.user.domain.User;
-import com.goodsup.demo.user.domain.UserRepository;
+import com.goodsup.demo.user.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,7 +34,7 @@ class NotificationServiceTest {
     private NotificationRepository notificationRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserService userService;
 
     @Mock
     private GoodsFundingService goodsFundingService;
@@ -71,7 +71,7 @@ class NotificationServiceTest {
         when(goodsFundingService.findRecruiting(1L)).thenReturn(Optional.of(goodsFunding()));
         when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(1L, 1L, NotificationType.DEADLINE_SOON))
                 .thenReturn(false);
-        when(userRepository.getReferenceById(1L)).thenReturn(
+        when(userService.getReference(1L)).thenReturn(
                 User.builder().email("user@test.com").password("password").nickname("user").build());
         when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -88,7 +88,7 @@ class NotificationServiceTest {
         when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(
                 anyLong(), eq(1L), eq(NotificationType.DEADLINE_SOON)))
                 .thenReturn(false);
-        when(userRepository.getReferenceById(anyLong())).thenReturn(
+        when(userService.getReference(anyLong())).thenReturn(
                 User.builder().email("user@test.com").password("password").nickname("user").build());
         when(notificationRepository.save(any(Notification.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"))
@@ -131,7 +131,7 @@ class NotificationServiceTest {
         when(goodsFundingService.findFailed(1L)).thenReturn(Optional.of(goodsFunding()));
         when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(1L, 1L, NotificationType.FUNDING_FAILED))
                 .thenReturn(false);
-        when(userRepository.getReferenceById(1L)).thenReturn(
+        when(userService.getReference(1L)).thenReturn(
                 User.builder().email("user@test.com").password("password").nickname("user").build());
         when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -160,7 +160,7 @@ class NotificationServiceTest {
         when(notificationRepository.existsByUserIdAndGoodsFundingIdAndType(
                 anyLong(), eq(1L), eq(NotificationType.FUNDING_FAILED)))
                 .thenReturn(false);
-        when(userRepository.getReferenceById(anyLong())).thenReturn(
+        when(userService.getReference(anyLong())).thenReturn(
                 User.builder().email("user@test.com").password("password").nickname("user").build());
         when(notificationRepository.save(any(Notification.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"))

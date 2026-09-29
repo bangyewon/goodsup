@@ -1,5 +1,6 @@
 package com.goodsup.demo.goods.service;
 
+import com.goodsup.demo.common.apiResponse.ErrorCode;
 import com.goodsup.demo.common.exception.GoodsException;
 import com.goodsup.demo.goods.domain.GoodsFunding;
 import com.goodsup.demo.goods.domain.GoodsFundingRepository;
@@ -7,7 +8,7 @@ import com.goodsup.demo.goods.dto.request.RegisterGoodsFundingRequest;
 import com.goodsup.demo.goods.dto.response.ShowGoodsFundingListResponse;
 import com.goodsup.demo.goods.dto.response.ShowGoodsFundingResponse;
 import com.goodsup.demo.user.domain.User;
-import com.goodsup.demo.user.domain.UserRepository;
+import com.goodsup.demo.user.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,7 +39,7 @@ class GoodsFundingServiceTest {
     private GoodsFundingRepository goodsFundingRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserService userService;
 
     @InjectMocks
     private GoodsFundingService goodsFundingService;
@@ -77,7 +78,7 @@ class GoodsFundingServiceTest {
     @Test
     void 존재하는_유저가_공동구매를_등록하면_생성된_id를_반환한다() {
         User host = host("host");
-        when(userRepository.findById(1L)).thenReturn(Optional.of(host));
+        when(userService.getUser(1L)).thenReturn(host);
         when(goodsFundingRepository.save(any(GoodsFunding.class))).thenAnswer(invocation -> {
             GoodsFunding saved = invocation.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", 100L);
@@ -92,7 +93,7 @@ class GoodsFundingServiceTest {
 
     @Test
     void 존재하지_않는_유저가_공동구매를_등록하면_예외가_발생한다() {
-        when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
+        when(userService.getUser(anyLong())).thenThrow(new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
 
         assertThatThrownBy(() -> goodsFundingService.registerGoodsFunding(1L, registerRequest()))
                 .isInstanceOf(GoodsException.class);
@@ -178,6 +179,14 @@ class GoodsFundingServiceTest {
         when(goodsFundingRepository.findByIdForUpdate(anyLong())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> goodsFundingService.settleAsFailed(1L, LocalDateTime.now()))
+                .isInstanceOf(GoodsException.class);
+    }
+
+    @Test
+    void 존재하지_않는_공구를_락_조회하면_예외가_발생한다() {
+        when(goodsFundingRepository.findByIdForUpdate(anyLong())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> goodsFundingService.getForUpdate(1L))
                 .isInstanceOf(GoodsException.class);
     }
 }
