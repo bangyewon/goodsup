@@ -3,7 +3,7 @@ package com.goodsup.demo.orders.service;
 import com.goodsup.demo.common.apiResponse.ErrorCode;
 import com.goodsup.demo.common.exception.GoodsException;
 import com.goodsup.demo.goods.domain.GoodsFunding;
-import com.goodsup.demo.goods.domain.GoodsFundingRepository;
+import com.goodsup.demo.goods.service.GoodsFundingService;
 import com.goodsup.demo.goods.domain.GoodsFundingStatus;
 import com.goodsup.demo.orders.domain.Orders;
 import com.goodsup.demo.orders.domain.OrdersRepository;
@@ -13,7 +13,7 @@ import com.goodsup.demo.payment.service.OutboxEventService;
 import com.goodsup.demo.payment.service.PaymentService;
 import com.goodsup.demo.payment.dto.ParticipantOrder;
 import com.goodsup.demo.user.domain.User;
-import com.goodsup.demo.user.domain.UserRepository;
+import com.goodsup.demo.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,18 +24,17 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-    private final UserRepository userRepository;
-    private final GoodsFundingRepository goodsFundingRepository;
+    private final UserService userService;
+    private final GoodsFundingService goodsFundingService;
     private final OrdersRepository ordersRepository;
     private final PaymentService paymentService;
     private final OutboxEventService outboxEventService;
 
     @Transactional
     public OrderResponse participateGoodsFunding(Long userId, Long goodsFundingId,ParticipateGoodsFundingRequest request) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
+        User user = userService.getUser(userId);
 
-        GoodsFunding goodsFunding = goodsFundingRepository.findByIdForUpdate(goodsFundingId)
-                .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
+        GoodsFunding goodsFunding = goodsFundingService.getForUpdate(goodsFundingId);
 
         if (goodsFunding.getStatus() != GoodsFundingStatus.RECRUITING
                 || !goodsFunding.getDeadlineAt().isAfter(LocalDateTime.now())) {
@@ -54,7 +53,7 @@ public class OrderService {
             List<ParticipantOrder> participantOrders = ordersRepository.findAllByGoodsFundingId(goodsFundingId).stream()
                     .map(o -> new ParticipantOrder(o.getId(), o.getQuantity() * goodsFunding.getPrice(), o.getPaymentMethod()))
                     .toList();
-            paymentService.createRequestedPaymentsForFunding(participantOrders);
+            paymentService.createRequestedPaymentsForFunding(goodsFundingId, participantOrders);
             outboxEventService.recordPaymentFanOutRequested(goodsFundingId, LocalDateTime.now());
         }
 

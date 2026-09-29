@@ -5,7 +5,7 @@ import com.goodsup.demo.goods.service.GoodsFundingService;
 import com.goodsup.demo.notification.domain.Notification;
 import com.goodsup.demo.notification.domain.NotificationRepository;
 import com.goodsup.demo.notification.domain.NotificationType;
-import com.goodsup.demo.user.domain.UserRepository;
+import com.goodsup.demo.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final GoodsFundingService goodsFundingService;
 
     @Transactional
@@ -51,7 +51,7 @@ public class NotificationService {
             }
             try {
                 Notification notification = Notification.builder()
-                        .user(userRepository.getReferenceById(userId))
+                        .user(userService.getReference(userId))
                         .goodsFunding(goodsFunding)
                         .type(type)
                         .build();

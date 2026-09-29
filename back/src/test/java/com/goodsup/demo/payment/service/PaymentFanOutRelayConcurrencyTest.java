@@ -250,8 +250,8 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         assertThat(worker1Processed).isEqualTo(1);
         assertThat(worker2Processed).isEqualTo(1);
 
-        Payment payment1 = paymentRepository.findByOrdersId(orderId1).orElseThrow();
-        Payment payment2 = paymentRepository.findByOrdersId(orderId2).orElseThrow();
+        Payment payment1 = paymentRepository.findByOrderId(orderId1).orElseThrow();
+        Payment payment2 = paymentRepository.findByOrderId(orderId2).orElseThrow();
         assertThat(payment1.getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
         assertThat(payment2.getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
     }
@@ -274,9 +274,9 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         // 1차 시도: 성공 건은 SUCCEEDED로 종결되고, 실패 건만 재시도 대기(attemptCount=1)로 남는다.
         int firstAttemptProcessed = paymentFanOutRelayScheduler.runOnce(now, farPast, "worker-a");
         assertThat(firstAttemptProcessed).isZero(); // 부분 실패라 이번 outbox row는 아직 완결되지 않음
-        assertThat(paymentRepository.findByOrdersId(orderIdSucceeds).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdSucceeds).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.SUCCEEDED);
-        assertThat(paymentRepository.findByOrdersId(orderIdAlwaysFails).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdAlwaysFails).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.REQUESTED);
         assertThat(fakePgPaymentGateway.callCountFor(orderIdSucceeds)).isEqualTo(1);
 
@@ -303,9 +303,9 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
                 .isEqualTo(PaymentFanOutRelayScheduler.MAX_ATTEMPTS);
 
         // A4: 재시도를 모두 소진해도 이미 성공한 결제는 보존되고, 실패 건만 FAILED로 강제 확정된다.
-        assertThat(paymentRepository.findByOrdersId(orderIdSucceeds).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdSucceeds).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.SUCCEEDED);
-        assertThat(paymentRepository.findByOrdersId(orderIdAlwaysFails).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdAlwaysFails).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.FAILED);
         assertThat(fanOutEventOf(fundingId).getStatus()).isEqualTo(OutboxEventStatus.FAILED);
     }
@@ -327,17 +327,17 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         LocalDateTime farPast = now.minusMinutes(10);
 
         // 참여 시점에 고른 결제수단이 Orders -> Payment로 그대로 전달됐는지 확인한다.
-        assertThat(paymentRepository.findByOrdersId(orderIdSucceeds).orElseThrow().getPaymentMethod())
+        assertThat(paymentRepository.findByOrderId(orderIdSucceeds).orElseThrow().getPaymentMethod())
                 .isEqualTo(PaymentMethod.CARD);
-        assertThat(paymentRepository.findByOrdersId(orderIdPending).orElseThrow().getPaymentMethod())
+        assertThat(paymentRepository.findByOrderId(orderIdPending).orElseThrow().getPaymentMethod())
                 .isEqualTo(PaymentMethod.VIRTUAL_ACCOUNT);
 
         // 1차 시도: 카드는 즉시 성공, 무통장입금은 PENDING이라 outbox row는 아직 완결되지 않는다.
         int firstAttemptProcessed = paymentFanOutRelayScheduler.runOnce(now, farPast, "worker-b1");
         assertThat(firstAttemptProcessed).isZero();
-        assertThat(paymentRepository.findByOrdersId(orderIdSucceeds).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdSucceeds).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.SUCCEEDED);
-        assertThat(paymentRepository.findByOrdersId(orderIdPending).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdPending).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.REQUESTED);
 
         OutboxEvent afterFirstAttempt = fanOutEventOf(fundingId);
@@ -362,7 +362,7 @@ class PaymentFanOutRelayConcurrencyTest extends AbstractConcurrencyIntegrationTe
         int thirdAttemptProcessed = paymentFanOutRelayScheduler.runOnce(thirdCheck, farPast, "worker-b1");
 
         assertThat(thirdAttemptProcessed).isEqualTo(1);
-        assertThat(paymentRepository.findByOrdersId(orderIdPending).orElseThrow().getStatus())
+        assertThat(paymentRepository.findByOrderId(orderIdPending).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.SUCCEEDED);
         OutboxEvent finalEvent = fanOutEventOf(fundingId);
         assertThat(finalEvent.getStatus()).isEqualTo(OutboxEventStatus.PROCESSED);
