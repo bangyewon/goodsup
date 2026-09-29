@@ -57,7 +57,7 @@ public class PaymentService {
 
     @Transactional
     public void markAllRemainingRequestedAsFailed(Long goodsFundingId) {
-        int failedCount = paymentRepository.failRequestedByGoodsFundingId(goodsFundingId, LocalDateTime.now());
+        paymentRepository.failRequestedByGoodsFundingId(goodsFundingId, LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -75,10 +75,10 @@ public class PaymentService {
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new GoodsException(ErrorCode.ENTITY_NOT_FOUND));
 
-        boolean applied = switch (status) {
+        switch (status) {
             case SUCCESS -> payment.markSucceeded(pgTransactionId);
             case FAILURE -> payment.markFailed();
-            case PENDING -> false;
-        };
+            case PENDING -> { }
+        }
     }
 }
