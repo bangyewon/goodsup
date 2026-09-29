@@ -10,13 +10,12 @@ import com.goodsup.demo.payment.dto.ParticipantOrder;
 import com.goodsup.demo.payment.dto.PaymentChargeSnapshot;
 import com.goodsup.demo.payment.dto.response.PaymentResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -58,10 +57,7 @@ public class PaymentService {
 
     @Transactional
     public void markAllRemainingRequestedAsFailed(Long goodsFundingId) {
-        List<Long> remainingPaymentIds = findRequestedPaymentIdsByGoodsFundingId(goodsFundingId);
-        for (Long paymentId : remainingPaymentIds) {
-            paymentRepository.findByIdForUpdate(paymentId).ifPresent(Payment::markFailed);
-        }
+        int failedCount = paymentRepository.failRequestedByGoodsFundingId(goodsFundingId, LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +80,5 @@ public class PaymentService {
             case FAILURE -> payment.markFailed();
             case PENDING -> false;
         };
-        log.info("결제 웹훅 처리: orderId={}, status={}, applied={}", orderId, status, applied);
     }
 }
