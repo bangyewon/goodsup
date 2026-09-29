@@ -1,0 +1,126 @@
+package com.goodsup.demo.payment.service;
+
+import com.goodsup.demo.payment.dto.PgChargeRequest;
+import com.goodsup.demo.payment.dto.PgChargeResult;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * ADR-0004 실측용 PG 게이트웨이 더블. 특정 주문의 응답을 인위적으로 차단/지연시키거나
+ * 강제로 실패시켜, claim/lease/재시도 동시성 시나리오를 실제 대기 없이 결정론적으로 재현한다.
+ */
+class FakePgPaymentGateway implements PgPaymentGateway {
+
+    private final Map<Long, AtomicInteger> callCounts = new ConcurrentHashMap<>();
+    private final Set<Long> alwaysFailOrderIds = ConcurrentHashMap.newKeySet();
+    private final Set<Long> alwaysPendingOrderIds = ConcurrentHashMap.newKeySet();
+    private volatile Long blockedOrderId;
+    private volatile CountDownLatch blockReleaseLatch;
+    private volatile CountDownLatch blockStartedSignal;
+    private volatile long simulatedLatencyMillis;
+
+    @Override
+    public PgChargeResult charge(PgChargeRequest request) {
+        callCounts.computeIfAbsent(request.orderId(), id -> new AtomicInteger()).incrementAndGet();
+
+        if (simulatedLatencyMillis > 0) {
+            sleepUninterruptibly(simulatedLatencyMillis);
+        }
+
+        if (request.orderId().equals(blockedOrderId)) {
+            if (blockStartedSignal != null) {
+                blockStartedSignal.countDown();
+            }
+            awaitUninterruptibly(blockReleaseLatch);
+        }
+
+        if (alwaysFailOrderIds.contains(request.orderId())) {
+            return PgChargeResult.failure("의도적 실패(테스트)");
+        }
+        if (alwaysPendingOrderIds.contains(request.orderId())) {
+            return PgChargeResult.pending();
+        }
+        return PgChargeResult.success("FAKE-PG-" + UUID.randomUUID());
+    }
+
+    int callCountFor(Long orderId) {
+        return callCounts.getOrDefault(orderId, new AtomicInteger()).get();
+    }
+
+    /** 이후 이 orderId에 대한 charge 호출은 releaseLatch가 열릴 때까지 블록되고, 블록 시작 시 startedSignal을 카운트다운한다. */
+    void blockOrderUntil(Long orderId, CountDownLatch releaseLatch, CountDownLatch startedSignal) {
+        this.blockedOrderId = orderId;
+        this.blockReleaseLatch = releaseLatch;
+        this.blockStartedSignal = startedSignal;
+    }
+
+    void alwaysFail(Long orderId) {
+        alwaysFailOrderIds.add(orderId);
+    }
+
+    /** 무통장입금 입금 대기처럼, 이후 이 orderId에 대한 charge 호출은 계속 PENDING을 반환한다. */
+    void alwaysPending(Long orderId) {
+        alwaysPendingOrderIds.add(orderId);
+    }
+
+    /** PENDING을 반환하던 orderId를 더 이상 PENDING으로 취급하지 않는다(예: "입금 확인됨" 시뮬레이션). */
+    void stopPending(Long orderId) {
+        alwaysPendingOrderIds.remove(orderId);
+    }
+
+    /** 이후 모든 charge 호출에 고정 지연을 부여한다(실제 PG 왕복시간을 흉내내기 위한 실측용 파라미터). */
+    void withLatency(long millis) {
+        this.simulatedLatencyMillis = millis;
+    }
+
+    void reset() {
+        callCounts.clear();
+        alwaysFailOrderIds.clear();
+        alwaysPendingOrderIds.clear();
+        blockedOrderId = null;
+        blockReleaseLatch = null;
+        blockStartedSignal = null;
+        simulatedLatencyMillis = 0;
+    }
+
+    private void awaitUninterruptibly(CountDownLatch latch) {
+        if (latch == null) {
+            return;
+        }
+        boolean interrupted = false;
+        while (true) {
+            try {
+                latch.await();
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void sleepUninterruptibly(long millis) {
+        boolean interrupted = false;
+        long deadlineNanos = System.nanoTime() + millis * 1_000_000L;
+        long remainingMillis = millis;
+        while (remainingMillis > 0) {
+            try {
+                Thread.sleep(remainingMillis);
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+                remainingMillis = (deadlineNanos - System.nanoTime()) / 1_000_000L;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}

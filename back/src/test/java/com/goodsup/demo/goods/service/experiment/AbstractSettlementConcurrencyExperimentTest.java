@@ -8,7 +8,10 @@ import com.goodsup.demo.notification.domain.NotificationRepository;
 import com.goodsup.demo.notification.domain.NotificationType;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.orders.service.OrderService;
+import com.goodsup.demo.payment.domain.OutboxEventRepository;
+import com.goodsup.demo.payment.domain.PaymentRepository;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -49,15 +52,22 @@ abstract class AbstractSettlementConcurrencyExperimentTest extends AbstractConcu
     private OrdersRepository ordersRepository;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private PaymentRepository paymentRepository;
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
 
     /**
      * 정산 실험 테스트는 싱글턴 Testcontainers MySQL을 여러 테스트 클래스(A-1/A-2 후보)가
      * 공유한다({@link com.goodsup.demo.common.AbstractConcurrencyIntegrationTest} 참고).
      * 스레드 간 동시 호출을 재현해야 해서 각 테스트를 하나의 트랜잭션으로 감싸 롤백할 수 없으므로,
-     * 매 테스트 종료 후 FK 순서(orders -> notification -> goods_funding -> user)로 직접 정리한다.
+     * 매 테스트 종료 후 FK 순서(payment -> outbox_event -> orders -> notification -> goods_funding -> user)로
+     * 직접 정리한다(payment가 orders를 FK로 참조하므로 orders보다 먼저 지워야 한다).
      */
     @AfterEach
     void cleanUp() {
+        paymentRepository.deleteAllInBatch();
+        outboxEventRepository.deleteAllInBatch();
         ordersRepository.deleteAllInBatch();
         notificationRepository.deleteAllInBatch();
         goodsFundingRepository.deleteAllInBatch();
@@ -95,7 +105,7 @@ abstract class AbstractSettlementConcurrencyExperimentTest extends AbstractConcu
         for (int i = 0; i < count; i++) {
             User participant = createUser(prefix + i);
             orderService.participateGoodsFunding(
-                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1));
+                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
         }
     }
 
@@ -130,7 +140,7 @@ abstract class AbstractSettlementConcurrencyExperimentTest extends AbstractConcu
                     startSignal.await();
                     try {
                         orderService.participateGoodsFunding(
-                                participantId, goodsFundingId, new ParticipateGoodsFundingRequest(1));
+                                participantId, goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
                         participationSuccessCount.incrementAndGet();
                     } catch (Exception ignored) {
                         // 마감/재고 소진에 따른 정상적인 거절은 무시한다.

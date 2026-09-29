@@ -15,4 +15,6 @@ public interface OrdersRepository extends JpaRepository<Orders, Long> {
 
     @Query("select distinct o.user.id from Orders o where o.goodsFunding.id = :goodsFundingId")
     List<Long> findDistinctUserIdsByGoodsFundingId(@Param("goodsFundingId") Long goodsFundingId);
+
+    List<Orders> findAllByGoodsFundingId(Long goodsFundingId);
 }

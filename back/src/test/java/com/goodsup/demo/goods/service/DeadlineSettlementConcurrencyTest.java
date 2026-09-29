@@ -9,7 +9,10 @@ import com.goodsup.demo.notification.domain.NotificationType;
 import com.goodsup.demo.notification.service.NotificationService;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.orders.service.OrderService;
+import com.goodsup.demo.payment.domain.OutboxEventRepository;
+import com.goodsup.demo.payment.domain.PaymentRepository;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -60,9 +63,15 @@ class DeadlineSettlementConcurrencyTest extends AbstractConcurrencyIntegrationTe
     private GoodsFundingService goodsFundingService;
     @Autowired
     private NotificationService notificationService;
+    @Autowired
+    private PaymentRepository paymentRepository;
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
 
     @AfterEach
     void cleanUp() {
+        paymentRepository.deleteAllInBatch();
+        outboxEventRepository.deleteAllInBatch();
         ordersRepository.deleteAllInBatch();
         notificationRepository.deleteAllInBatch();
         goodsFundingRepository.deleteAllInBatch();
@@ -93,7 +102,7 @@ class DeadlineSettlementConcurrencyTest extends AbstractConcurrencyIntegrationTe
         for (int i = 0; i < count; i++) {
             User participant = createUser(prefix + i);
             orderService.participateGoodsFunding(
-                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1));
+                    participant.getId(), goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
         }
     }
 
@@ -135,7 +144,7 @@ class DeadlineSettlementConcurrencyTest extends AbstractConcurrencyIntegrationTe
                     startSignal.await();
                     try {
                         orderService.participateGoodsFunding(
-                                participantId, goodsFundingId, new ParticipateGoodsFundingRequest(1));
+                                participantId, goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
                         participationSuccessCount.incrementAndGet();
                     } catch (Exception ignored) {
                         // 마감/재고 소진에 따른 정상적인 거절은 무시한다.

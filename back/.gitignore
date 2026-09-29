@@ -39,3 +39,6 @@ src/main/resources/application.properties
 
 ### jqwik ###
 .jqwik-database
+
+### graphify ###
+graphify-out/

@@ -2,6 +2,7 @@ package com.goodsup.demo.orders.domain;
 
 import com.goodsup.demo.common.domain.BaseEntity;
 import com.goodsup.demo.goods.domain.GoodsFunding;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.user.domain.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -32,14 +33,19 @@ public class Orders extends BaseEntity {
     private int quantity;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", nullable = false)
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "delivery_status", nullable = false)
     private DeliveryStatus deliveryStatus;
 
     @Builder
-    private Orders(GoodsFunding goodsFunding, User user, int quantity) {
+    private Orders(GoodsFunding goodsFunding, User user, int quantity, PaymentMethod paymentMethod) {
         this.goodsFunding = goodsFunding;
         this.user = user;
         this.quantity = quantity;
+        this.paymentMethod = paymentMethod;
         this.deliveryStatus = DeliveryStatus.WAITING;
     }
 }

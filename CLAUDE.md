@@ -71,4 +71,7 @@ Claude는 코드 생성뿐 아니라 구현의 반례를 찾는 적대적 검증
 Claude의 분석이나 예측 자체를 근거로 최종 결론을 내리지 않는다.
 실제 테스트 결과와 관찰 가능한 데이터만 최종 의사결정의 근거로 사용한다.
 
-재현 여부와 상관없이 모든 시나리오는 `docs/experiments/adversarial-test-log.md`에 기록한다.
+재현 여부와 상관없이 모든 시나리오는 `docs/experiments/` 아래 주제별 로그 파일
+(`adversarial-test-log-<주제>.md`, 예: 결제는 `adversarial-test-log-payment.md`)에 기록한다.
+전체 목록은 `docs/experiments/adversarial-test-log.md`(인덱스)에서 찾는다. 다루는 이슈에 맞는
+주제 파일이 아직 없으면 새로 만들고 인덱스에 등록한다.

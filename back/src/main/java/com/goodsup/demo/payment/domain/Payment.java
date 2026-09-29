@@ -38,6 +38,10 @@ public class Payment extends BaseEntity {
     private int amount;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", nullable = false)
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
@@ -45,9 +49,27 @@ public class Payment extends BaseEntity {
     private String pgTransactionId;
 
     @Builder
-    private Payment(Orders orders, int amount) {
+    private Payment(Orders orders, int amount, PaymentMethod paymentMethod) {
         this.orders = orders;
         this.amount = amount;
+        this.paymentMethod = paymentMethod;
         this.status = PaymentStatus.REQUESTED;
+    }
+
+    public boolean markSucceeded(String pgTransactionId) {
+        if (this.status != PaymentStatus.REQUESTED) {
+            return false;
+        }
+        this.status = PaymentStatus.SUCCEEDED;
+        this.pgTransactionId = pgTransactionId;
+        return true;
+    }
+
+    public boolean markFailed() {
+        if (this.status != PaymentStatus.REQUESTED) {
+            return false;
+        }
+        this.status = PaymentStatus.FAILED;
+        return true;
     }
 }

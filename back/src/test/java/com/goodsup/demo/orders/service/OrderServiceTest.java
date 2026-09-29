@@ -7,7 +7,10 @@ import com.goodsup.demo.goods.domain.GoodsFundingStatus;
 import com.goodsup.demo.orders.domain.Orders;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
 import com.goodsup.demo.orders.dto.response.OrderResponse;
+import com.goodsup.demo.payment.service.OutboxEventService;
+import com.goodsup.demo.payment.service.PaymentService;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,12 @@ class OrderServiceTest {
     @Mock
     private OrdersRepository ordersRepository;
 
+    @Mock
+    private PaymentService paymentService;
+
+    @Mock
+    private OutboxEventService outboxEventService;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -64,7 +73,7 @@ class OrderServiceTest {
     }
 
     private ParticipateGoodsFundingRequest request(int quantity) {
-        return new ParticipateGoodsFundingRequest(quantity);
+        return new ParticipateGoodsFundingRequest(quantity, PaymentMethod.CARD);
     }
 
     @Test

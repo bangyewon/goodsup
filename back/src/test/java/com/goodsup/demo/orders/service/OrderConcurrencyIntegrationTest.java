@@ -5,8 +5,12 @@ import com.goodsup.demo.goods.domain.GoodsFunding;
 import com.goodsup.demo.goods.domain.GoodsFundingRepository;
 import com.goodsup.demo.orders.domain.OrdersRepository;
 import com.goodsup.demo.orders.dto.request.ParticipateGoodsFundingRequest;
+import com.goodsup.demo.payment.domain.PaymentMethod;
+import com.goodsup.demo.payment.domain.OutboxEventRepository;
+import com.goodsup.demo.payment.domain.PaymentRepository;
 import com.goodsup.demo.user.domain.User;
 import com.goodsup.demo.user.domain.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -38,6 +42,26 @@ class OrderConcurrencyIntegrationTest extends AbstractConcurrencyIntegrationTest
     private OrdersRepository ordersRepository;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private PaymentRepository paymentRepository;
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
+
+    /**
+     * 목표 수량을 채우면 참여 트랜잭션이 Payment/outbox row까지 함께 생성한다(ADR-0004).
+     * 싱글턴 컨테이너를 다른 테스트 클래스와 공유하므로, FK 순서(payment -> outbox_event ->
+     * orders -> goods_funding -> user)로 직접 정리하지 않으면 이 데이터가 다른 클래스의
+     * outbox 릴레이 테스트에 잘못 섞여 들어간다(ADR-0004 A3/A4 실측 중 재현: 정리 누락으로
+     * 남은 이 테스트의 outbox row를 다른 테스트가 자기 것과 함께 집계해버림).
+     */
+    @AfterEach
+    void cleanUp() {
+        paymentRepository.deleteAllInBatch();
+        outboxEventRepository.deleteAllInBatch();
+        ordersRepository.deleteAllInBatch();
+        goodsFundingRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
+    }
 
     @Test
     void 동시에_목표_수량보다_많은_참여_요청이_와도_재고를_초과하지_않는다() throws InterruptedException {
@@ -79,7 +103,7 @@ class OrderConcurrencyIntegrationTest extends AbstractConcurrencyIntegrationTest
                     startSignal.await();
                     try {
                         orderService.participateGoodsFunding(
-                                participantId,goodsFundingId, new ParticipateGoodsFundingRequest( 1));
+                                participantId,goodsFundingId, new ParticipateGoodsFundingRequest(1, PaymentMethod.CARD));
                         successCount.incrementAndGet();
                     } catch (Exception ignored) {
                         // 재고 소진에 따른 정상적인 거절은 무시한다.

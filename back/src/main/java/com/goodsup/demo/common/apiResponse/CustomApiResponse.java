@@ -1,7 +1,6 @@
 package com.goodsup.demo.common.apiResponse;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.goodsup.demo.common.domain.ResultType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 
@@ -11,14 +10,13 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record CustomApiResponse<T>(
         int statusCode,
-        ResultType resultType,
         T data,
         ErrorResult error,
         String message
 ) {
 
     public static <T> CustomApiResponse<T> success(T data, int statusCode, String message) {
-        return new CustomApiResponse<>(statusCode, ResultType.SUCCESS, data, null, message);
+        return new CustomApiResponse<>(statusCode, data, null, message);
     }
 
     public ResponseEntity<CustomApiResponse<T>> toResponseEntity() {
@@ -28,7 +26,6 @@ public record CustomApiResponse<T>(
     public static CustomApiResponse<?> fail(ErrorCode errorCode) {
         return new CustomApiResponse<>(
                 errorCode.getStatusCode(),
-                ResultType.FAIL,
                 null,
                 new ErrorResult(errorCode.getMessage(), null),
                 null
@@ -38,7 +35,6 @@ public record CustomApiResponse<T>(
     public static CustomApiResponse<?> fail(ErrorCode errorCode, List<String> details) {
         return new CustomApiResponse<>(
                 errorCode.getStatusCode(),
-                ResultType.FAIL,
                 null,
                 new ErrorResult(errorCode.getMessage(), details),
                 null
