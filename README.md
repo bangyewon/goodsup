@@ -11,68 +11,58 @@
   <img alt="jqwik" src="https://img.shields.io/badge/tests-JUnit5_%2B_jqwik-blue">
 </p>
 
-<p align="center"><strong>0% 초과 판매 · 851 TPS (DB 비관적 락) · p99 148ms</strong></p>
-
 <p align="center">
   <img src="docs/assets/benchmark.svg" alt="동시성 전략 비교 그래프" width="760">
 </p>
 
-<p align="center"><sub>ADR-0001 실측 값 (ExecutorService 동시 호출 통합 테스트, MySQL 8.0). 조건과 원본 로그는 <a href="docs/adr/0001-concurrency-control-strategy.md">ADR-0001</a> 참고.</sub></p>
-
 * * *
 
-팬덤 굿즈 **공동구매 · 마감 임박 결제 시스템**. 목표 수량을 달성한 공구만 결제가 확정됩니다.
-핵심 과제는 마감 직전에 몰리는 **동시 참여 요청의 정합성 제어**이고, 이 저장소는 그 결정을
-"감"이 아니라 **실측과 반례 테스트**로 내린 기록이기도 합니다.
+팬덤 굿즈 공동구매 서비스의 백엔드입니다. 목표 수량이 다 찬 공구만 결제가 진행되고, 못 채우면 결제 없이 끝납니다.
+마감 직전에 몰리는 동시 참여 요청에서 수량이 목표를 넘지 않게 하는 것이 가장 신경 쓴 부분이라, 락 전략 같은
+결정은 직접 돌려본 수치와 반례 테스트를 근거로 골랐고 그 과정을 `docs/`에 남겼습니다.
 
-## 서비스 개요
+## 서비스 흐름
 
-1. **공구 개설** — 굿즈, 목표 수량, 마감 시각을 정해 공구(`GoodsFunding`)를 엽니다. 상태는 `RECRUITING`.
-2. **참여** — 사용자가 수량을 담아 주문합니다. 이 시점에는 결제하지 않고 수량만 확보합니다.
-3. **마감 정산** — 마감 시각에 배치가 목표 수량 달성 여부를 판정합니다. 달성하면 `FINISHED`, 미달이면 `FAILED`.
-   마감 임박 시점에는 참여자에게 알림을 보냅니다.
-4. **결제** — `FINISHED`된 공구의 참여자 전원에게 결제를 fan-out 합니다. `FAILED`면 결제가 일어나지 않습니다.
-5. **배송** — 결제가 끝난 주문은 `WAITING → PREPARING → SHIPPING → DELIVERED`로 진행합니다.
+1. 공구를 만든다. 굿즈, 목표 수량, 마감 시각을 정하고 상태는 `RECRUITING`이다.
+2. 사용자가 수량과 결제수단(카드, 가상계좌)을 골라 참여한다. 이때는 결제하지 않고 수량만 확보한다.
+3. 마지막 한 자리가 차는 순간 그 참여 트랜잭션에서 공구가 `FINISHED`가 된다.
+4. 마감 시각까지 못 채운 공구는 정산 배치가 `FAILED`로 바꾼다. 마감 임박 공구에는 알림도 이 배치에서 보낸다.
+5. `FINISHED`가 되면 참여자 전원에게 결제 요청을 보낸다. PG 응답은 웹훅으로도 받는다.
 
 | API | 설명 |
 |---|---|
-| `POST /api/users/register` | 회원가입 |
 | `POST /api/goods-fundings` | 공구 개설 |
-| `GET /api/goods-fundings`, `GET /api/goods-fundings/{id}` | 공구 목록·상세 |
-| `POST /api/goods-fundings/{id}/orders` | 공구 참여 |
+| `POST /api/goods-fundings/{id}/orders` | 공구 참여 (재고 차감) |
 | `GET /api/orders/{orderId}/payment` | 결제 상태 조회 |
 | `POST /api/payments/webhook` | PG 결제 결과 수신 (HMAC-SHA256 서명 검증) |
 
-## 실측으로 고른 동시성 전략
+나머지 API는 실행 후 Swagger UI(springdoc)에서 볼 수 있습니다.
 
-세 가지 구현을 같은 조건에서 비교했습니다 ([ADR-0001](docs/adr/0001-concurrency-control-strategy.md)).
+## 동시성 전략은 어떻게 골랐나
 
-| | A. Redisson RLock | **B. DB 비관적 락** | C. 낙관적 락 + 재시도 |
-|---|---|---|---|
-| 재고 오차율 | 0% | **0%** | 0% |
-| TPS | 334.45 | **851.11** | 256.37 |
-| p95 | 458.33ms | **132.33ms** | 772.67ms |
-| p99 | 564.67ms | **148.33ms** | 798.33ms |
+위 그래프가 실측 결과입니다. 재고 차감은 Redisson 락, DB 비관적 락, 낙관적 락 세 가지를 같은 조건에서
+돌려 봤고, 정합성은 모두 문제가 없어서 처리량과 지연이 가장 좋았던 DB 비관적 락으로 정했습니다. Redis 없이
+MySQL만으로 되는 점도 이유입니다. ([ADR-0001](docs/adr/0001-concurrency-control-strategy.md))
 
-정합성은 셋 다 같았고 처리량·지연·에러율에서 B가 앞서 **B를 채택**했습니다. 별도 인프라(Redis)도 필요 없습니다.
+마감 정산은 단건 락 재사용과 벌크 UPDATE를 비교했습니다. 벌크가 더 빠를 거라 예상했는데 오히려 8~9배 느려서
+기존 락 방식을 그대로 썼습니다. ([ADR-0002](docs/adr/0002-deadline-settlement-batch-concurrency.md))
 
-## 어떻게 검증하나
+결제를 시작하는 방식도 비슷하게 봤습니다. 정산 후 결제 요청은 outbox 테이블에 기록해 두고 스케줄러가 읽어 처리하는
+폴링 방식으로 정했습니다. Debezium으로 CDC를 붙이는 안도 컨테이너로 띄워 봤는데, 커밋부터 Kafka 토픽 도착까지
+p50 496ms 정도였습니다. 이 서비스에서 결제 시작이 그 정도로 빠를 필요는 없다고 보고, Kafka 운영 부담을 지지 않는
+쪽을 택했습니다. ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md))
 
-1. **동시 요청 재현** — `ExecutorService` 기반 통합 테스트 (Testcontainers MySQL)
-2. **불변식 검증** — jqwik stateful property test ("참여 수량 ≤ 목표 수량", "정산 후 상태는 되돌아가지 않는다")
-3. **적대적 리뷰** — Claude에게 코드를 "깨뜨리는 역할"을 맡기고, 재현된 반례만 회귀 테스트로 고정
-   → [적대적 테스트 로그](docs/experiments/adversarial-test-log.md)
+## 테스트
 
-> Claude의 분석 자체는 근거가 아닙니다. 실제 테스트 결과만 결정의 근거가 됩니다.
+- 동시 요청은 `ExecutorService`로 재현하는 통합 테스트로 확인합니다 (Testcontainers MySQL).
+- "참여 수량은 목표를 넘지 않는다", "정산 후 상태는 되돌아가지 않는다" 같은 불변식은 jqwik property test로 봅니다.
+- 락이나 결제 로직을 짠 뒤에는 Claude에게 일부러 깨뜨릴 방법을 찾게 하고, 실제로 재현된 것만 수정한 뒤
+  기록했습니다. 재현 안 된 시나리오도 이유와 함께 남겼습니다. ([적대적 테스트 로그](docs/experiments/adversarial-test-log.md))
 
-## 결제 흐름
+## 결제 처리
 
-```
-참여(재고 차감, 비관적 락) → 마감 정산 배치 → 목표 달성 시 결제 fan-out
-```
-
-- 목표 달성 후 결제하므로 미달 공구에는 환불 자체가 없습니다 ([ADR-0003](docs/adr/0003-payment-timing-strategy.md))
-- 참여 트랜잭션에는 PG 호출이 없습니다 (트랜잭션 안 외부 API 동기 호출 금지)
+- 참여 트랜잭션 안에서는 PG를 호출하지 않습니다. 결제는 목표 달성 이후에만 하기 때문에 미달 공구는 환불할 일이 없습니다. ([ADR-0003](docs/adr/0003-payment-timing-strategy.md))
+- 재시도 횟수, 워커 lease 시간 같은 상수는 실측값과 정책 가정을 나눠서 [ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md)에 근거를 적었습니다.
 
 ## 설계 결정 (ADR)
 
@@ -81,9 +71,9 @@
 | [0001](docs/adr/0001-concurrency-control-strategy.md) | 공구 참여 동시성 제어 | 채택 |
 | [0002](docs/adr/0002-deadline-settlement-batch-concurrency.md) | 마감 정산 배치 동시성 | 채택 |
 | [0003](docs/adr/0003-payment-timing-strategy.md) | 결제 시점 (목표 달성 후 결제) | 채택 |
-| [0004](docs/adr/0004-payment-fanout-trigger-strategy.md) | 결제 fan-out 트리거 | 보류 |
+| [0004](docs/adr/0004-payment-fanout-trigger-strategy.md) | 결제 fan-out 트리거 | 채택 |
 | [0005](docs/adr/0005-partial-fanout-failure-refund-strategy.md) | 부분 실패 환불 | 초안 |
-| [0006](docs/adr/0006-pending-payment-state-and-timeout-policy.md) | PENDING 상태·타임아웃 | 초안 |
+| [0006](docs/adr/0006-pending-payment-state-and-timeout-policy.md) | PENDING 상태·타임아웃 | 부분 구현 |
 
 ## 구조
 
