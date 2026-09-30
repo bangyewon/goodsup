@@ -1,6 +1,6 @@
 # ADR 0004: 정산 후 결제 fan-out 트리거 전략 — Outbox 폴링 릴레이 vs Outbox CDC 릴레이
 
-- 상태: 논의 중 (실측 진행 전 — 비교표·결정은 실측 후 채움)
+- 상태: 채택됨 (A안, 2026-09-30 사용자 확정)
 - 작성일: 2026-09-21
 - 관련 이슈: #9
 - 관련 ADR: [0001-concurrency-control-strategy.md](./0001-concurrency-control-strategy.md), [0002-deadline-settlement-batch-concurrency.md](./0002-deadline-settlement-batch-concurrency.md), [0003-payment-timing-strategy.md](./0003-payment-timing-strategy.md)
@@ -103,16 +103,33 @@ PaymentService" 절 참고.
   데드락, (2) 결제 fan-out 기능 추가 이전에 작성된 `OrderConcurrencyIntegrationTest`가 새로 생긴
   Payment/outbox 부수효과를 정리하지 않아 전체 스위트에서만 드러난 교차 오염. 상세는 로그 참고.
 
-### B. Outbox + CDC 릴레이 (미실행)
+### B. Outbox + CDC 릴레이 (경량 PoC 실측 완료)
 
-아직 실측하지 않았다. A안 실측을 CLAUDE.md 절차대로 먼저 완주한 뒤 진행하기로 순서를 정했다.
+`OutboxCdcPocTest`(`CDC_POC=true`로만 실행, 격리된 MySQL(binlog ROW)+Kafka+Debezium Connect
+컨테이너)로 확인했다. 상세와 해석 주의점은 `docs/experiments/adversarial-test-log-payment.md`의
+"B안(CDC) 경량 PoC 실측" 절 참고.
+
+- **도달 여부**: outbox insert가 Debezium을 거쳐 Kafka 토픽에 실제로 나타났다(워밍업 1건 + 측정 20건
+  전부 도달).
+- **지연**: 커밋~토픽 도달 n=20, p50=496ms, p95=502ms. 분포가 485~509ms로 매우 좁아 Debezium
+  기본 폴링 간격(500ms로 알고 있음)이 지배했을 가능성이 크나, 설정을 바꿔 확인하지는 않았다(가설).
+- **측정하지 않은 것**: 동시 부하, 커넥터 재시작 시 offset 재개·중복 발행, 컨슈머 멱등성/재시도/lease.
+  프로덕션급 컨슈머를 구현하지 않았으므로 A안과 정합성 측면의 비교는 할 수 없다.
+- **A와 직접 비교 불가**: A의 p50=25ms는 "claim~처리완료"이고 B의 496ms는 "커밋~토픽 도달"이라
+  구간이 다르다. A의 트리거 지연은 스케줄러 cron 설정(기본 1분)에서 나오며 이번에 실측하지 않았다.
 
 ## 결정
 
-A안(Outbox + 폴링 릴레이)은 정합성 실측을 통과했고(발견된 버그는 수정·재검증 완료), 신규 인프라
-없이 기존 기술 스택(Spring Batch/MySQL 비관적 락)만으로 구현된다는 이점이 있다. 다만 B안(CDC)과의
-정식 비교 없이는 "폴링 릴레이 채택"을 최종 확정할 수 없다 — 이 ADR의 비교 대상 자체가 A/B 중
-릴레이 방식을 고르는 것이었으므로, B 실측 전까지 결정은 보류한다.
+**A안(Outbox + 폴링 릴레이)을 채택한다.**
+
+- 근거(실측): A는 정합성 실측을 통과했고(발견된 버그 수정·재검증 완료) 신규 인프라 없이 기존
+  스택만으로 동작한다. B는 outbox→토픽 도달 자체는 확인됐지만(p50≈0.5초), 이는 "치명적으로 불리하지
+  않은가"를 본 경량 PoC라 정합성·장애 복구는 검증되지 않았다.
+- 근거(정책 판단, 실측 아님): B의 이점은 트리거 지연(≈0.5초 vs A의 cron 주기)인데, 정산 후 결제는
+  참여자에게 초 단위 즉시성을 요구하지 않는다고 본다. 반면 B는 Kafka+Connect 운영 부담과 CLAUDE.md
+  기술 스택 갱신을 요구한다. 이 "즉시성이 필요 없다"는 판단은 데이터가 아니라 가정이며, 사용자가 A안을 확정하며 받아들였다.
+- A의 트리거 지연이 문제되면 cron 주기 단축이 먼저이며, 그 이후에도 부족할 때 B를 재검토한다.
+  이 경우 CLAUDE.md의 CDC 원칙(테스트 스코프 한정)을 먼저 갱신해야 한다.
 
 ### 재시도/lease 상수 확정 (`MAX_ATTEMPTS`/`LEASE_TIMEOUT`/`BASE_BACKOFF`/`MAX_BACKOFF`)
 
@@ -163,7 +180,15 @@ adversarial-test-log-payment.md` "후속: LEASE_TIMEOUT 근거 마련을 위한 
 
 ## 트레이드오프
 
-*(B 실측 후 채움 — A 단독 트레이드오프는 위 "실측 결과" 절 참고.)*
+| | A. 폴링 릴레이 | B. CDC 릴레이 |
+|---|---|---|
+| 신규 인프라 | 없음 | Kafka + Debezium Connect |
+| 트리거 지연 | cron 주기에 좌우(기본 1분, 미실측) | p50=496ms / p95=502ms (PoC, n=20) |
+| 정합성 검증 | 완료(A1~A5, A2 수정) | 미검증(PoC 범위 밖) |
+| 장애 복구·중복 처리 | lease/재시도/멱등 구현·검증 | 미구현 |
+| 운영 부담 | 기존 스택 | 커넥터·offset·스키마 히스토리 관리 추가 |
+
+*(B의 지연 수치는 로컬 Docker·단일 브로커·순차 insert 기준이며 프로덕션 SLA 근거로 쓰지 않는다.)*
 
 ## 참고 — 향후 실측이 필요한 하위 질문
 

@@ -83,3 +83,24 @@ LEASE_TIMEOUT ≥ maxN × (PG 타임아웃 스펙 + 릴레이 오버헤드) × �
 기록했다. 그 결정과 위 실측 공식을 결합해 `MAX_ATTEMPTS=11`, `LEASE_TIMEOUT=90분`으로 확정하고
 `PaymentFanOutRelayScheduler`에 반영했다(`BASE_BACKOFF`/`MAX_BACKOFF`는 역산 결과 변경 불필요로
 확인되어 10초/10분 그대로 유지).
+
+## B안(CDC) 경량 PoC 실측 (#9, ADR-0004 B안)
+
+`OutboxCdcPocTest`(`CDC_POC=true`일 때만 실행, 격리된 MySQL(binlog ROW)+Kafka(cp-kafka 7.6.1)+
+Debezium Connect 2.7 컨테이너). 프로덕션급 컨슈머는 만들지 않고 "outbox insert가 토픽에 도달하는가"와
+"커밋~토픽 도달 지연"만 측정했다.
+
+| 항목 | 결과 |
+|---|---|
+| outbox insert → Kafka 토픽 도달 | 재현됨(워밍업 1건 + 측정 20건 모두 30초 내 도달) |
+| 커밋~토픽 도달 지연 (n=20) | p50=496ms, p95=502ms (min 485 / max 509) |
+
+**해석 시 주의**
+- 분포가 485~509ms로 매우 좁다. 이 값은 CDC 파이프라인의 본질적 지연이라기보다 Debezium 커넥터의
+  기본 폴링 간격(`poll.interval.ms` 기본값 500ms로 알고 있음)에 걸린 값일 가능성이 크지만, **이번
+  실험에서 설정을 바꿔 확인하지 않았으므로 가설이다.**
+- 순차 insert 20건, 단일 브로커, 로컬 Docker 기준이다. 동시 부하·장애 복구(커넥터 재시작 시 offset
+  재개, 중복 발행)·컨슈머 멱등성은 이번 PoC 범위 밖이라 **측정하지 않았다.**
+- A안의 "claim~처리완료 p50=25ms"와는 **측정 구간이 달라 직접 비교할 수 없다.** A안의 트리거 지연은
+  `PaymentFanOutRelayScheduler`의 `@Scheduled(cron = "0 * * * * *")`(기본 1분 주기) 설정값에서
+  나오며 이번에 실측하지 않았다.

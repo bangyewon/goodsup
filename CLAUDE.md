@@ -23,6 +23,8 @@
   - **공구 참여(재고 차감)**: `GoodsFundingRepository.findByIdForUpdate`(`@Lock(PESSIMISTIC_WRITE)`)로 DB 비관적 락을 사용한다. Redisson RLock, 낙관적 락+재시도와 실측 비교한 결과이며 근거는 `docs/adr/0001-concurrency-control-strategy.md` 참고.
   - 그 외 새로운 동시성 로직(마감 정산 등)에 대해 아직 실측 비교가 없다면, 코드 작성 전에 Plan Mode로 전략을 비교하고 ADR을 작성한다. Redisson RLock을 쓰는 경우 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
 
+- **CDC(Debezium + Kafka)는 ADR-0004 B안 경량 PoC 용도로만, 테스트 스코프(Testcontainers)에서만 사용한다.** 프로덕션 코드·런타임 의존성·배포 인프라로의 도입은 ADR-0004 결정이 확정된 뒤 이 문서를 다시 갱신한 후에 진행한다.
+
 ## 코딩 컨벤션
 
 - 패키지 구조: `com.goodsup.{domain}.{controller|service|dto|entity}`
