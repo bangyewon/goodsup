@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="480" viewBox="0 0 760 480" role="img" aria-label="동시성 전략 비교: TPS, p95, p99">
+<rect x="0.5" y="0.5" width="759" height="479" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="24" y="38" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#1e293b">공구 참여 동시성 전략 비교</text>
+<text x="24" y="60" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#64748b">ExecutorService 동시 호출 · MySQL 8.0 · 3회 평균 · 재고 오차율은 셋 다 0% (ADR-0001)</text>
+<text x="24" y="88" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">TPS</text>
+<text x="736" y="88" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#64748b">높을수록 좋음</text>
+<text x="180" y="116" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">A. Redisson RLock</text>
+<rect x="190" y="100" width="184.7" height="22" rx="4" fill="#94a3b8"/>
+<text x="382.7" y="116" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">334</text>
+<text x="180" y="146" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">B. DB 비관적 락</text>
+<rect x="190" y="130" width="470.0" height="22" rx="4" fill="#8b5cf6"/>
+<text x="668.0" y="146" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">851</text>
+<text x="180" y="176" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">C. 낙관적 락 + 재시도</text>
+<rect x="190" y="160" width="141.6" height="22" rx="4" fill="#94a3b8"/>
+<text x="339.6" y="176" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">256</text>
+<text x="24" y="216" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">p95 지연 (ms)</text>
+<text x="736" y="216" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#64748b">낮을수록 좋음</text>
+<text x="180" y="244" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">A. Redisson RLock</text>
+<rect x="190" y="228" width="278.8" height="22" rx="4" fill="#94a3b8"/>
+<text x="476.8" y="244" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">458</text>
+<text x="180" y="274" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">B. DB 비관적 락</text>
+<rect x="190" y="258" width="80.5" height="22" rx="4" fill="#8b5cf6"/>
+<text x="278.5" y="274" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">132</text>
+<text x="180" y="304" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">C. 낙관적 락 + 재시도</text>
+<rect x="190" y="288" width="470.0" height="22" rx="4" fill="#94a3b8"/>
+<text x="668.0" y="304" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">773</text>
+<text x="24" y="344" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">p99 지연 (ms)</text>
+<text x="736" y="344" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#64748b">낮을수록 좋음</text>
+<text x="180" y="372" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">A. Redisson RLock</text>
+<rect x="190" y="356" width="332.4" height="22" rx="4" fill="#94a3b8"/>
+<text x="530.4" y="372" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">565</text>
+<text x="180" y="402" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">B. DB 비관적 락</text>
+<rect x="190" y="386" width="87.3" height="22" rx="4" fill="#8b5cf6"/>
+<text x="285.3" y="402" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">148</text>
+<text x="180" y="432" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#334155">C. 낙관적 락 + 재시도</text>
+<rect x="190" y="416" width="470.0" height="22" rx="4" fill="#94a3b8"/>
+<text x="668.0" y="432" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">798</text>
+</svg>
