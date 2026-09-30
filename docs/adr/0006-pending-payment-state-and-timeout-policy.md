@@ -1,6 +1,6 @@
 # ADR 0006: PENDING 결제 상태 모델링 및 결제수단별 타임아웃 정책
 
-- 상태: 논의 중 (구현 전 초안 — 사람 확인 필요, 아직 코드 작성 안 함)
+- 상태: 부분 구현 (축 1·2·4 반영, 축 3·5 미구현 — 결정은 사람 확인 후 확정)
 - 작성일: 2026-09-25
 - 관련 이슈: #9
 - 관련 ADR: [0001](./0001-concurrency-control-strategy.md), [0003](./0003-payment-timing-strategy.md),
@@ -37,9 +37,9 @@
    보류**한다(하단 "참고" 절).
 5. **더 근본적인 선행 문제 발견**: 3~4번을 검토하는 과정에서, 위 어떤 안을 고르든 상관없이 먼저
    고쳐야 하는 문제가 드러났다. 현재 `PgChargeResult`(`success`/`failure` 이진)와
-   `PaymentFanOutRelayScheduler`의 재시도 정책(`MAX_ATTEMPTS`=5, `BASE_BACKOFF`=10초,
-   `MAX_BACKOFF`=10분, `LEASE_TIMEOUT`=5분— 전부 `payment/service/PaymentFanOutRelayScheduler.java`
-   23-26행)은 **PG가 몇 초~몇 분 안에 성공/실패를 즉답하는 카드형 결제만 전제**하고 있다.
+   `PaymentFanOutRelayScheduler`의 재시도 정책(작성 당시 `MAX_ATTEMPTS`=5, `BASE_BACKOFF`=10초,
+   `MAX_BACKOFF`=10분, `LEASE_TIMEOUT`=5분 — 이후 ADR-0004의 실측+정책 결정으로 `MAX_ATTEMPTS`=11,
+   `LEASE_TIMEOUT`=90분으로 확정됨. 전부 `payment/service/PaymentFanOutRelayScheduler.java`)은 **PG가 몇 초~몇 분 안에 성공/실패를 즉답하는 카드형 결제만 전제**하고 있다.
    무통장입금은 실제로는 "가상계좌 발급 완료, 아직 입금 안 됨"이라는 **제3의 상태(PENDING)**가
    존재하고 입금까지 며칠이 걸릴 수 있는데, 지금 모델은 이 상태를 표현할 방법이 없다. 이대로
    무통장입금을 붙이면 참여자가 입금할 시간을 기다려주지 않고 재시도 5회·백오프 최대 10분
@@ -108,6 +108,20 @@ PgChargeResult.java`)가 `String errorMessage`만 갖고 있어 이 둘을 애�
   플레이스홀더 기준이라, 이 분류표 자체는 실제 PG 연동 시점에 확정하고, 이 ADR은 "그런 분류가
   구조적으로 가능해야 한다"는 모델링까지만 다룬다.
 
+## 구현 현황 (코드·테스트로 확인한 사실, 2026-09-30 기준)
+
+| 설계 축 | 상태 | 확인 근거 |
+|---|---|---|
+| 1. PENDING 아웃컴 | 반영됨 | `PgChargeStatus.PENDING`, `PgChargeResult.pending()`, `PaymentChargeExecutor.handlePending` → `ChargeOutcome.AWAITING_PG`. 릴레이는 `markPendingRecheck`로 재확인 시각만 미루고 `attemptCount`/`lastError`를 건드리지 않는다(`OutboxEvent.markPendingRecheck`). 통합 테스트 `B1`이 검증 |
+| 2. 결제수단 모델링 | 반영됨 | `PaymentMethod{CARD, VIRTUAL_ACCOUNT}`, 참여 요청(`ParticipateGoodsFundingRequest`) → `Orders` → `Payment`로 전달. `B1`이 전달 여부를 assert |
+| 3. 결제수단별 타임아웃 | **미구현** | 재확인 간격은 결제수단과 무관한 전역 상수 `PENDING_RECHECK_INTERVAL`=30분 하나뿐이고, 입금 기한 개념이 코드에 없다. 따라서 입금이 영원히 안 되는 `PENDING` 결제를 `FAILED`로 확정하는 경로가 없다 |
+| 4. 입금 확인 웹훅 | 반영됨 | `POST /api/payments/webhook`(HMAC-SHA256 서명 검증) → `PaymentService.applyWebhookResult`(`findByIdForUpdate`). 웹훅의 `PENDING` 상태는 무시한다 |
+| 5. 실패 사유 코드화 | **미구현** | `PgChargeResult.failure`는 여전히 `String errorMessage`만 가지며, `handleFailure`는 사유와 무관하게 항상 `RETRY_NEEDED`를 반환한다 |
+
+`B1`은 실패 시나리오를 찾는 적대적 테스트가 아니라 축 1의 기대 동작을 확인하는 테스트다(무통장입금
+PENDING이 재시도 예산을 소모하지 않고 재확인만 예약되다가 입금 확인 후 정상 종결). 아래 "실험 설계"의
+1~4번은 아직 실측하지 않았다.
+
 ## 실험 설계 (구현 후 실측 필요 — CLAUDE.md "AI를 검증 파트너로 활용" 절차)
 
 구현 후 `PaymentFanOutRelayConcurrencyTest`와 유사한 통합 테스트로 다음을 재현·실측한다:
@@ -126,11 +140,30 @@ PgChargeResult.java`)가 `String errorMessage`만 갖고 있어 이 둘을 애�
 
 ## 결정 (초안)
 
-*(사람 확인 후 확정 — 설계 축 1~5의 구체적인 구현 방식은 확인 후 진행.)*
+*(사람 확인 후 확정.)*
+
+- **축 1·2·4는 이미 코드에 반영됐으므로 이 ADR의 결정으로 추인한다**: PENDING은 실패가 아닌 "미완료"로
+  다루어 재시도 예산을 소모시키지 않고, 결제수단은 `Payment`에 저장하며, 입금 확인은 서명 검증된 웹훅으로
+  받는다(폴링 재확인은 정합성 보루, 웹훅은 지연 단축).
+- **축 3·5는 미구현이라 결정을 보류한다.** 구현 방식(결제수단별 정책 객체 vs 정책 테이블, 입금 기한
+  값, 실패 사유 분류표)은 사람이 정해야 하고, 분류표는 실제 PG SDK 응답 코드가 필요하다.
 
 ## 트레이드오프
 
-*(구현·실측 후 채움.)*
+**확인된 것(코드·`B1` 테스트 근거)**
+- PENDING을 별도 아웃컴으로 분리해, 입금 대기가 재시도 예산(`MAX_ATTEMPTS`)을 소모해 조기에 `FAILED`
+  되는 원래 문제(배경 5번)는 축 1 범위에서 해소됐다.
+
+**알려진 공백(미실측 — 가설이며 재현 전에는 결론 내리지 않는다)**
+- 입금 기한이 없어 입금되지 않는 `PENDING`이 무기한 30분 간격 재확인 대상으로 남을 수 있다
+  (축 3 미구현의 직접 결과로, 코드상 확정된 사실).
+- `PENDING`이 하나라도 있으면 릴레이는 같은 outbox row 안의 다른 결제(예: 실패한 카드 건)에 대해서도
+  `markPendingForRetry` 대신 30분 간격 재확인으로 처리한다(`processOne`의 `anyAwaitingPg` 분기).
+  카드 재시도가 결제수단이 다른 건의 대기에 묶이는지는 실험 설계 2번으로 **재현해야 확인된다.**
+- 재시도 무의미한 실패(잔액부족 등)도 재시도 경로를 타 `FAILED` 확정과 ADR-0005 환불 경로 진입이
+  늦어진다(축 5 미구현).
+
+*(실험 설계 1~4 실측 후 이 절을 갱신하고 상태를 "채택됨"으로 바꾼다.)*
 
 ## 참고 — 향후 재검토가 필요한 하위 질문
 
