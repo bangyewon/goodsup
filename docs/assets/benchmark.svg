@@ -1,48 +1,63 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="620" viewBox="0 0 760 620" role="img" aria-label="동시성 전략 실측 비교: 공구 참여(TPS, p95, p99)와 마감 정산(실행 시간)">
-<rect x="0.5" y="0.5" width="759" height="619" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
-<text x="24" y="34" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#1e293b">공구 참여 동시성 — ADR-0001</text>
-<text x="24" y="54" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#64748b">ExecutorService 동시 호출 · MySQL 8.0 · 3회 평균 · 재고 오차율은 셋 다 0%</text>
-<text x="24" y="84" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">TPS</text>
-<text x="736" y="84" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#64748b">높을수록 좋음</text>
-<text x="205" y="112" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">A. Redisson RLock</text>
-<rect x="215" y="96" width="172.9" height="22" rx="4" fill="#94a3b8"/>
-<text x="395.9" y="112" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">334</text>
-<text x="205" y="142" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">B. DB 비관적 락</text>
-<rect x="215" y="126" width="440.0" height="22" rx="4" fill="#8b5cf6"/>
-<text x="663.0" y="142" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">851</text>
-<text x="205" y="172" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">C. 낙관적 락 + 재시도</text>
-<rect x="215" y="156" width="132.5" height="22" rx="4" fill="#94a3b8"/>
-<text x="355.5" y="172" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">256</text>
-<text x="24" y="208" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">p95 지연 (ms)</text>
-<text x="736" y="208" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#64748b">낮을수록 좋음</text>
-<text x="205" y="236" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">A. Redisson RLock</text>
-<rect x="215" y="220" width="261.0" height="22" rx="4" fill="#94a3b8"/>
-<text x="484.0" y="236" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">458</text>
-<text x="205" y="266" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">B. DB 비관적 락</text>
-<rect x="215" y="250" width="75.4" height="22" rx="4" fill="#8b5cf6"/>
-<text x="298.4" y="266" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">132</text>
-<text x="205" y="296" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">C. 낙관적 락 + 재시도</text>
-<rect x="215" y="280" width="440.0" height="22" rx="4" fill="#94a3b8"/>
-<text x="663.0" y="296" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">773</text>
-<text x="24" y="332" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">p99 지연 (ms)</text>
-<text x="736" y="332" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#64748b">낮을수록 좋음</text>
-<text x="205" y="360" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">A. Redisson RLock</text>
-<rect x="215" y="344" width="311.2" height="22" rx="4" fill="#94a3b8"/>
-<text x="534.2" y="360" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">565</text>
-<text x="205" y="390" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">B. DB 비관적 락</text>
-<rect x="215" y="374" width="81.8" height="22" rx="4" fill="#8b5cf6"/>
-<text x="304.8" y="390" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">148</text>
-<text x="205" y="420" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">C. 낙관적 락 + 재시도</text>
-<rect x="215" y="404" width="440.0" height="22" rx="4" fill="#94a3b8"/>
-<text x="663.0" y="420" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">798</text>
-<text x="24" y="470" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#1e293b">마감 정산 — ADR-0002</text>
-<text x="24" y="490" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#64748b">정합성은 두 방식 모두 12회 실행 통과 · 아래는 참고 지표(시나리오 1 테스트 실행 시간)</text>
-<text x="24" y="520" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#1e293b">실행 시간 (초)</text>
-<text x="736" y="520" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#64748b">낮을수록 좋음</text>
-<text x="205" y="548" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">A-1. 단건 비관적 락 재사용</text>
-<rect x="215" y="532" width="50.2" height="22" rx="4" fill="#8b5cf6"/>
-<text x="273.2" y="548" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">1.85</text>
-<text x="205" y="578" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155">A-2. 벌크 UPDATE</text>
-<rect x="215" y="562" width="440.0" height="22" rx="4" fill="#94a3b8"/>
-<text x="663.0" y="578" text-anchor="start" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e293b">16.20</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="344" viewBox="0 0 760 344" role="img" aria-label="동시성 전략 실측 비교: 공구 참여(TPS, p95, p99)와 마감 정산(실행 시간)">
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px}
+.h{font-size:17px;font-weight:700;fill:#1e293b}
+.p{font-size:13px;font-weight:700;fill:#1e293b}
+.v{font-weight:700;fill:#1e293b}
+.b{fill:#334155}
+.bb{fill:#1e293b;font-weight:700}
+.m{fill:#64748b}
+.m2{fill:#64748b;font-size:10px}
+.hi{fill:#8b5cf6}
+.lo{fill:#94a3b8}
+@media (prefers-color-scheme:dark){
+.h,.p,.v,.bb{fill:#f1f5f9}
+.b{fill:#cbd5e1}
+.m,.m2{fill:#94a3b8}
+.hi{fill:#a78bfa}
+.lo{fill:#64748b}
+}
+</style>
+<text x="24" y="34" text-anchor="start" class="h">공구 참여 동시성 — ADR-0001</text>
+<rect x="584" y="23" width="12" height="12" rx="3" class="hi"/>
+<text x="602" y="34" text-anchor="start" class="m">채택</text>
+<rect x="648" y="23" width="12" height="12" rx="3" class="lo"/>
+<text x="666" y="34" text-anchor="start" class="m">비교 대상</text>
+<text x="24" y="54" text-anchor="start" class="m">ExecutorService 동시 호출 · MySQL 8.0 · 3회 평균 · 재고 오차율은 셋 다 0%</text>
+<text x="215" y="84" text-anchor="start" class="p">TPS</text>
+<text x="257" y="84" text-anchor="start" class="m2">높을수록 좋음</text>
+<text x="405" y="84" text-anchor="start" class="p">p95 (ms)</text>
+<text x="467" y="84" text-anchor="start" class="m2">낮을수록 좋음</text>
+<text x="595" y="84" text-anchor="start" class="p">p99 (ms)</text>
+<text x="657" y="84" text-anchor="start" class="m2">낮을수록 좋음</text>
+<text x="200" y="107" text-anchor="end" class="b">A. Redisson RLock</text>
+<rect x="215" y="92" width="41.3" height="20" rx="4" class="lo"/>
+<text x="262.3" y="107" text-anchor="start" class="v">334</text>
+<rect x="405" y="92" width="62.3" height="20" rx="4" class="lo"/>
+<text x="473.3" y="107" text-anchor="start" class="v">458</text>
+<rect x="595" y="92" width="74.3" height="20" rx="4" class="lo"/>
+<text x="675.3" y="107" text-anchor="start" class="v">565</text>
+<text x="200" y="137" text-anchor="end" class="bb">B. DB 비관적 락</text>
+<rect x="215" y="122" width="105.0" height="20" rx="4" class="hi"/>
+<text x="326.0" y="137" text-anchor="start" class="v">851</text>
+<rect x="405" y="122" width="18.0" height="20" rx="4" class="hi"/>
+<text x="429.0" y="137" text-anchor="start" class="v">132</text>
+<rect x="595" y="122" width="19.5" height="20" rx="4" class="hi"/>
+<text x="620.5" y="137" text-anchor="start" class="v">148</text>
+<text x="200" y="167" text-anchor="end" class="b">C. 낙관적 락 + 재시도</text>
+<rect x="215" y="152" width="31.6" height="20" rx="4" class="lo"/>
+<text x="252.6" y="167" text-anchor="start" class="v">256</text>
+<rect x="405" y="152" width="105.0" height="20" rx="4" class="lo"/>
+<text x="516.0" y="167" text-anchor="start" class="v">773</text>
+<rect x="595" y="152" width="105.0" height="20" rx="4" class="lo"/>
+<text x="706.0" y="167" text-anchor="start" class="v">798</text>
+<text x="24" y="198" text-anchor="start" class="m">채택안(B)은 차선(A) 대비 TPS 2.5배, p99 지연 3.8배 낮음</text>
+<text x="24" y="238" text-anchor="start" class="h">마감 정산 — ADR-0002</text>
+<text x="24" y="258" text-anchor="start" class="m">정합성은 두 방식 모두 12회 실행 통과 · 아래는 참고 지표(시나리오 1 테스트 실행 시간, 낮을수록 좋음)</text>
+<text x="215" y="295" text-anchor="end" class="bb">A-1. 단건 비관적 락 재사용</text>
+<rect x="230" y="280" width="34.3" height="20" rx="4" class="hi"/>
+<text x="270.3" y="295" text-anchor="start" class="v">1.85초</text>
+<text x="215" y="325" text-anchor="end" class="b">A-2. 벌크 UPDATE</text>
+<rect x="230" y="310" width="300.0" height="20" rx="4" class="lo"/>
+<text x="536.0" y="325" text-anchor="start" class="v">16.2초 (약 8.8배)</text>
 </svg>
