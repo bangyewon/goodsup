@@ -32,6 +32,8 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testImplementation("org.testcontainers:junit-jupiter:1.20.4")
 	testImplementation("org.testcontainers:mysql:1.20.4")
+	testImplementation("org.testcontainers:kafka:1.20.4") // ADR-0004 B안 CDC PoC 전용(테스트 스코프)
+	testImplementation("org.apache.kafka:kafka-clients")
 	testImplementation("net.jqwik:jqwik:1.9.3")
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
