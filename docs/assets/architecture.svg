@@ -13,7 +13,7 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .box{fill:#f1f5f9;stroke:#cbd5e1}
 .dv{stroke:#cbd5e1}
 .tx{fill:#8b5cf6;fill-opacity:.08;stroke:#8b5cf6}
-.ext{fill:none;stroke:#94a3b8;stroke-dasharray:5 4}
+.ext{fill:#f1f5f9;stroke:#94a3b8;stroke-dasharray:5 4}
 .app{fill:none;stroke:#94a3b8}
 .db{fill:#e2e8f0;stroke:#94a3b8}
 .ln{stroke:#64748b;fill:none;stroke-width:1.3}
@@ -29,7 +29,8 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .box{fill:#1e293b;stroke:#475569}
 .dv{stroke:#475569}
 .tx{fill:#8b5cf6;fill-opacity:.16;stroke:#a78bfa}
-.ext,.app{stroke:#64748b}
+.ext{fill:#1e293b;stroke:#64748b}
+.app{stroke:#64748b}
 .db{fill:#334155;stroke:#64748b}
 .ln,.dl{stroke:#94a3b8}
 .kl{stroke:#a78bfa}

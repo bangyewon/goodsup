@@ -14,13 +14,15 @@ Java 21 · Spring Boot 3 · MySQL · JUnit5 · Testcontainers
 - 같은 조건에서 락 전략을 비교한 결과, DB 비관적 락이 Redisson 락보다 TPS는 2.5배 높고 p99 지연은 3.8배 낮았다. (851 TPS · p99 148ms, 로컬 Docker, 서비스 메서드 직접 호출 기준)
 - 마감 처리 스케줄러(미달 공구를 `FAILED`로 전이)를 10회 동시 호출해도 상태 전이는 1회, 알림 중복은 0건
 
-| 전략 (ADR-0001) | 초과 판매 | TPS | p99 |
-|---|---|---|---|
-| Redisson RLock | 0건 | 334 | 565ms |
-| **DB 비관적 락 (채택)** | **0건** | **851** | **148ms** |
-| 낙관적 락 + 재시도 | 0건 | 256 | 798ms |
+| 전략 (ADR-0001) | 초과 판매 | TPS | p99 | 에러율 |
+|---|---|---|---|---|
+| Redisson RLock | 0건 | 334 | 565ms | 0% |
+| **DB 비관적 락 (채택)** | **0건** | **851** | **148ms** | **0%** |
+| 낙관적 락 + 재시도 | 0건 | 256 | 798ms | 9.83% |
 
 동시 참여 200건, 목표 50 · 3회 평균 · 로컬 Docker MySQL 8.0 · 서비스 메서드를 `ExecutorService`로 직접 호출(HTTP 제외)
+
+낙관적 락의 에러는 매진이 아니라, 재시도 10회 안에 버전 충돌을 풀지 못해 참여할 수 있었던 요청이 실패한 경우다.
 
 | 마감 정산 (ADR-0002) | 정합성 (12회) | 테스트 실행 시간 |
 |---|---|---|
@@ -47,11 +49,17 @@ Java 21 · Spring Boot 3 · MySQL · JUnit5 · Testcontainers
 | 결제 시점 ([ADR-0003](docs/adr/0003-payment-timing-strategy.md)) | 목표 달성 후 결제 | 미달 공구는 환불 자체가 없고, 참여 트랜잭션에서 PG 호출 안 함 |
 | 결제 트리거 ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md)) | Transactional Outbox + 폴링 | 정합성 테스트 통과, 신규 인프라 불필요. CDC는 PoC만 하고 보류 |
 
+**왜 Outbox인가** ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md))
+
+<p align="center">
+  <img src="docs/assets/outbox.svg" alt="커밋 후 PG 직접 호출과 Transactional Outbox 비교" width="880">
+</p>
+
 트레이드오프는 각 ADR에 적었다. 요약하면 락 대기가 직렬이라 더 큰 규모는 확인하지 못했고, 결제 트리거 지연은 스케줄러 주기(1분)에 좌우된다.
 
 ## 트러블슈팅
 
-락 로직을 짤 때마다 Claude에게 깨뜨릴 시나리오를 뽑게 했고, 재현된 것만 고쳤다. ([전체 로그](docs/experiments/adversarial-test-log.md))
+락 로직을 구현할 때마다 Claude에게 깨뜨릴 시나리오를 제안받아 테스트로 검증했다. 재현된 문제는 수정하고 회귀 테스트로 고정했으며, 재현되지 않은 시나리오도 이유와 함께 로그에 남겼다. ([전체 로그](docs/experiments/adversarial-test-log.md))
 
 - **결제 중복 호출**: lease가 만료돼 다른 워커가 같은 outbox row를 잡으면 PG를 두 번 호출했다. 완료 처리를 멱등하게 바꿨다. (PG 중복 방지는 idempotency key에 맡겼지만 실제 PG 연동 전이라 미검증)
 - **끝난 공구에 마감 임박 알림 생성**: 대상 조회 후 알림을 만들기 전에 공구가 종료되면 알림이 그대로 생성됐다. 생성 시점에 상태를 다시 확인한다.
