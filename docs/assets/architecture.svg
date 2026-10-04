@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="540" viewBox="0 0 920 540" role="img" aria-label="GoodsUp 아키텍처: 공구 참여 트랜잭션 경계와 Outbox 릴레이를 통한 결제 요청 흐름">
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11.5px;text-anchor:middle}
+.t{font-weight:700;fill:#1e293b}
+.s{font-size:10px;fill:#64748b}
+.g{text-anchor:start}
+.e{text-anchor:end}
+.l{font-size:10.5px;fill:#475569;text-anchor:start}
+.n{font-size:12px;font-weight:700;fill:#7c3aed;text-anchor:start}
+.kt{font-size:10px;font-weight:700;fill:#7c3aed;text-anchor:start}
+.pill{fill:#7c3aed}
+.pt{font-size:9px;font-weight:700;fill:#fff}
+.box{fill:#f1f5f9;stroke:#cbd5e1}
+.dv{stroke:#cbd5e1}
+.tx{fill:#8b5cf6;fill-opacity:.08;stroke:#8b5cf6}
+.ext{fill:none;stroke:#94a3b8;stroke-dasharray:5 4}
+.app{fill:none;stroke:#94a3b8}
+.db{fill:#e2e8f0;stroke:#94a3b8}
+.ln{stroke:#64748b;fill:none;stroke-width:1.3}
+.dl{stroke:#64748b;fill:none;stroke-width:1.3;stroke-dasharray:4 3}
+.kl{stroke:#7c3aed;fill:none;stroke-width:2.4}
+.ah{fill:#64748b}
+.ak{fill:#7c3aed}
+@media (prefers-color-scheme:dark){
+.t{fill:#f1f5f9}
+.s,.l{fill:#94a3b8}
+.n,.kt{fill:#a78bfa}
+.pill{fill:#8b5cf6}
+.box{fill:#1e293b;stroke:#475569}
+.dv{stroke:#475569}
+.tx{fill:#8b5cf6;fill-opacity:.16;stroke:#a78bfa}
+.ext,.app{stroke:#64748b}
+.db{fill:#334155;stroke:#64748b}
+.ln,.dl{stroke:#94a3b8}
+.kl{stroke:#a78bfa}
+.ah{fill:#94a3b8}
+.ak{fill:#a78bfa}
+}
+</style>
+<defs>
+<marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" class="ah"/></marker>
+<marker id="k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" class="ak"/></marker>
+</defs>
+
+<rect x="124" y="24" width="632" height="388" rx="8" class="app"/>
+<text x="745" y="40" class="s e">Spring Boot</text>
+
+<rect x="16" y="30" width="92" height="36" rx="6" class="box"/>
+<text x="62" y="53" class="t">클라이언트</text>
+<line x1="108" y1="48" x2="595" y2="48" class="ln"/>
+<text x="398" y="42" class="kt">POST /api/goods-fundings/{id}/orders</text>
+<line x1="286" y1="48" x2="286" y2="68" class="ln" marker-end="url(#a)"/>
+<line x1="389" y1="48" x2="389" y2="68" class="ln" marker-end="url(#a)"/>
+<line x1="492" y1="48" x2="492" y2="67" class="kl" marker-end="url(#k)"/>
+<line x1="595" y1="48" x2="595" y2="68" class="ln" marker-end="url(#a)"/>
+
+<text x="136" y="62" class="s g">Controller</text>
+<rect x="239" y="70" width="94" height="40" rx="6" class="box"/>
+<text x="286" y="88" class="t">User</text>
+<text x="286" y="102" class="s">회원 가입</text>
+<rect x="342" y="70" width="94" height="40" rx="6" class="box"/>
+<text x="389" y="88" class="t">GoodsFunding</text>
+<text x="389" y="102" class="s">공구 등록 · 조회</text>
+<rect x="445" y="70" width="94" height="40" rx="6" class="box"/>
+<text x="492" y="88" class="t">Order</text>
+<text x="492" y="102" class="s">공구 참여</text>
+<rect x="548" y="70" width="94" height="40" rx="6" class="box"/>
+<text x="595" y="88" class="t">Payment</text>
+<text x="595" y="102" class="s">결제 조회</text>
+<rect x="651" y="70" width="94" height="40" rx="6" class="box"/>
+<text x="698" y="88" class="t">Webhook</text>
+<text x="698" y="102" class="s">서명 검증 필터</text>
+
+<line x1="286" y1="110" x2="286" y2="154" class="ln" marker-end="url(#a)"/>
+<line x1="389" y1="110" x2="389" y2="154" class="ln" marker-end="url(#a)"/>
+<line x1="492" y1="110" x2="492" y2="153" class="kl" marker-end="url(#k)"/>
+<line x1="595" y1="110" x2="595" y2="154" class="ln" marker-end="url(#a)"/>
+<path d="M698 110V130H595" class="dl"/>
+
+<rect x="336" y="146" width="414" height="58" rx="8" class="tx"/>
+<rect x="332" y="138" width="50" height="14" rx="7" class="pill"/>
+<text x="357" y="148" class="pt">트랜잭션</text>
+
+<text x="136" y="150" class="s g">Service</text>
+<rect x="136" y="156" width="94" height="40" rx="6" class="box"/>
+<text x="183" y="174" class="t">Notification</text>
+<text x="183" y="188" class="s">스케줄러가 호출</text>
+<rect x="239" y="156" width="94" height="40" rx="6" class="box"/>
+<text x="286" y="174" class="t">User</text>
+<text x="286" y="188" class="s">회원</text>
+<rect x="342" y="156" width="94" height="40" rx="6" class="box"/>
+<text x="389" y="174" class="t">GoodsFunding</text>
+<text x="389" y="188" class="s">공구 row 락</text>
+<rect x="445" y="156" width="94" height="40" rx="6" class="box"/>
+<text x="492" y="174" class="t">Order</text>
+<text x="492" y="188" class="s">참여 트랜잭션</text>
+<rect x="548" y="156" width="94" height="40" rx="6" class="box"/>
+<text x="595" y="174" class="t">Payment</text>
+<text x="595" y="188" class="s">결제 상태</text>
+<text x="632" y="172" class="n">*</text>
+<rect x="651" y="156" width="94" height="40" rx="6" class="box"/>
+<text x="698" y="174" class="t">OutboxEvent</text>
+<text x="698" y="188" class="s">outbox claim</text>
+<text x="735" y="172" class="n">*</text>
+
+<line x1="215" y1="236" x2="215" y2="198" class="dl" marker-end="url(#a)"/>
+<line x1="389" y1="236" x2="389" y2="198" class="dl" marker-end="url(#a)"/>
+<line x1="492" y1="236" x2="492" y2="198" class="dl" marker-end="url(#a)"/>
+<line x1="595" y1="236" x2="595" y2="198" class="dl" marker-end="url(#a)"/>
+<line x1="698" y1="236" x2="698" y2="198" class="dl" marker-end="url(#a)"/>
+
+<text x="136" y="230" class="s g">Scheduler</text>
+<rect x="136" y="236" width="403" height="56" rx="6" class="box"/>
+<line x1="136" y1="264" x2="539" y2="264" class="dv"/>
+<text x="148" y="254" class="t g">마감 정산 · 1시간 주기</text>
+<text x="318" y="254" class="s g">DeadlineSettlementScheduler</text>
+<text x="148" y="282" class="t g">마감 임박 알림 · 1시간 주기</text>
+<text x="318" y="282" class="s g">DeadlineSoonNotificationScheduler</text>
+<rect x="548" y="236" width="197" height="56" rx="6" class="box"/>
+<text x="646" y="260" class="t">결제 릴레이 · 1분 주기</text>
+<text x="646" y="275" class="s">PaymentFanOutRelayScheduler</text>
+
+<line x1="646" y1="292" x2="646" y2="320" class="dl" marker-end="url(#a)"/>
+<text x="654" y="312" class="n">②</text>
+
+<rect x="496" y="322" width="249" height="54" rx="6" class="box"/>
+<text x="620" y="339" class="t">PaymentChargeExecutor</text>
+<text x="620" y="353" class="s">PG 호출은 트랜잭션 밖</text>
+<text x="620" y="366" class="s">조회·갱신은 PaymentService 트랜잭션</text>
+
+<text x="136" y="316" class="l">① 참여 요청 = OrderService의 단일 @Transactional (보라 영역)</text>
+<text x="136" y="330" class="l">　 공구 row 비관적 락 → 검증 · 주문 저장 (회원은 조회만)</text>
+<text x="136" y="344" class="l">　 *목표 달성 시 FINISHED + 결제 레코드 + outbox 기록</text>
+<text x="136" y="358" class="l">② 릴레이: outbox 1건 → 참여자별 결제 N건 요청</text>
+<text x="136" y="372" class="l">③ PG 결제 요청 (트랜잭션 밖)</text>
+<text x="136" y="386" class="l">④ 웹훅: 서명 검증 → 결제 상태 갱신</text>
+<text x="136" y="402" class="l">※ Notification · 스케줄러 · 웹훅은 참여 트랜잭션 밖 (각자 별도 트랜잭션)</text>
+<text x="745" y="406" class="s e">서비스 간 호출은 생략</text>
+
+<rect x="780" y="70" width="124" height="306" rx="8" class="ext"/>
+<text x="842" y="213" class="t">PG</text>
+<text x="842" y="231" class="s">미연동 · 플레이스홀더</text>
+<text x="842" y="245" class="s">LoggingPayment</text>
+<text x="842" y="257" class="s">Gateway로 대체</text>
+<line x1="745" y1="342" x2="778" y2="342" class="dl" marker-end="url(#a)"/>
+<text x="752" y="335" class="n">③</text>
+<line x1="778" y1="90" x2="747" y2="90" class="dl" marker-end="url(#a)"/>
+<text x="754" y="83" class="n">④</text>
+<text x="842" y="396" class="s">PG → POST</text>
+<text x="842" y="408" class="s">/api/payments/webhook</text>
+
+<line x1="440" y1="412" x2="440" y2="430" class="ln" marker-end="url(#a)"/>
+<rect x="136" y="432" width="609" height="36" rx="6" class="db"/>
+<text x="440" y="455" class="t">MySQL — 공구 · 주문 · 결제 · outbox · 알림 · 회원</text>
+
+<line x1="136" y1="496" x2="162" y2="496" class="ln" marker-end="url(#a)"/>
+<text x="170" y="500" class="s g">사용자 요청이 시작한 호출 (화살표 = 호출 방향)</text>
+<line x1="470" y1="496" x2="496" y2="496" class="dl" marker-end="url(#a)"/>
+<text x="504" y="500" class="s g">스케줄러 · PG가 시작한 호출</text>
+<rect x="136" y="512" width="18" height="12" rx="3" class="tx"/>
+<text x="160" y="522" class="s g">참여 요청의 DB 트랜잭션</text>
+<rect x="470" y="512" width="18" height="12" rx="3" class="ext"/>
+<text x="494" y="522" class="s g">미구현 · 대체 구현</text>
+</svg>
