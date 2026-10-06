@@ -6,7 +6,7 @@
 
 목표 수량을 채운 공구만 결제하고, 마감 직전에 요청이 몰려도 참여 수량이 목표를 넘지 않게 하는 서비스다.
 
-Java 21 · Spring Boot 3 · MySQL · JUnit5 · Testcontainers
+Java 26 · Spring Boot 4 · MySQL · JUnit5 · Testcontainers
 
 ## 핵심 성과
 
@@ -45,9 +45,9 @@ Java 21 · Spring Boot 3 · MySQL · JUnit5 · Testcontainers
 | 결정 | 선택 | 근거 |
 |---|---|---|
 | 참여 동시성 ([ADR-0001](docs/adr/0001-concurrency-control-strategy.md)) | DB 비관적 락 | 셋 다 초과 판매 0건, 처리량·지연 최고, Redis 불필요 |
-| 마감 정산 ([ADR-0002](docs/adr/0002-deadline-settlement-batch-concurrency.md)) | 단건 락 재사용 | 정합성 동일, 벌크 UPDATE가 8~9배 느림(테스트 실행 시간 기준) |
+| 마감 정산 ([ADR-0002](docs/adr/0002-deadline-settlement-batch-concurrency.md)) | 단건 락 재사용 | 정합성은 둘 다 12회 통과. 벌크는 속도 이점이 없었고(테스트 실행 1.85초 vs 16.2초, 참고 지표) 전이 대상을 따로 조회해야 해서 단건 락 재사용 채택 |
 | 결제 시점 ([ADR-0003](docs/adr/0003-payment-timing-strategy.md)) | 목표 달성 후 결제 | 미달 공구는 환불 자체가 없고, 참여 트랜잭션에서 PG 호출 안 함 |
-| 결제 트리거 ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md)) | Transactional Outbox + 폴링 | 정합성 테스트 통과, 신규 인프라 불필요. CDC는 PoC만 하고 보류 |
+| 결제 트리거 ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md)) | Transactional Outbox + Polling Relay | 정합성 테스트 통과, 신규 인프라 불필요. CDC는 PoC만 하고 보류 |
 
 **왜 Outbox인가** ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md))
 
@@ -65,10 +65,12 @@ Java 21 · Spring Boot 3 · MySQL · JUnit5 · Testcontainers
 - **끝난 공구에 마감 임박 알림 생성**: 대상 조회 후 알림을 만들기 전에 공구가 종료되면 알림이 그대로 생성됐다. 생성 시점에 상태를 다시 확인한다.
 - **1인당 한도 우회**: 이번 요청 수량만 검증해서, 한도만큼 두 번 참여하면 통과했다. 기존 참여 수량을 합산해 락 안에서 검증한다.
 
-## 개발 방식
+## 개발 방식 및 검증
 
-- 동시 요청은 `ExecutorService` 통합 테스트(Testcontainers MySQL)로 재현해 확인하고, 재현된 문제는 회귀 테스트로 고정한다.
-- 동시성·결제 설계는 ADR 초안을 먼저 쓰고 사람이 확인한 뒤 구현하는 것을 원칙으로 했다. 결론의 근거는 Claude의 분석이 아니라 테스트 결과다. 규칙은 [CLAUDE.md](CLAUDE.md)에 있다.
+- **AI 활용 범위**: 보일러플레이트, 테스트 초안, 실패 시나리오 생성 등 반복 작업은 AI를 활용했다. 반면 동시성 전략, 트랜잭션 경계처럼 되돌리기 어려운 설계 결정은 대안을 비교한 뒤 사람이 최종 선택했다.
+- **가드레일**: [CLAUDE.md](CLAUDE.md)에 프로젝트 규칙과 설계 원칙을 정의하고, 커밋 전 테스트 및 PR 단계의 자동 리뷰를 통해 동일한 기준을 반복 적용했다.
+- **검증 우선**: 설계 결론은 AI의 분석이 아니라 실제 테스트 결과를 근거로 확정했고, 실측하지 못한 부분은 정책 가정으로 ADR에 따로 표시했다. 동시 요청은 `ExecutorService` + Testcontainers MySQL로 재현하고, 발견한 문제는 회귀 테스트로 고정했다.
+- **반대 검증**: 생성된 테스트 시나리오와 실험 설계도 그대로 수용하지 않고, 조건과 측정 대상의 모순을 직접 검토하여 수정했다. ([adversarial-test-log-settlement.md](docs/experiments/adversarial-test-log-settlement.md))
 
 ## 한계
 
