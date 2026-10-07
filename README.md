@@ -24,7 +24,7 @@ Java 26 · Spring Boot 4 · MySQL · JUnit5 · Testcontainers
 
 낙관적 락의 에러는 매진이 아니라, 재시도 10회 안에 버전 충돌을 풀지 못해 참여할 수 있었던 요청이 실패한 경우다.
 
-| 마감 정산 (ADR-0002) | 정합성 (12회) | 테스트 실행 시간 |
+| 미달 공구 종료 (ADR-0002) | 정합성 (12회) | 테스트 실행 시간 |
 |---|---|---|
 | **단건 비관적 락 재사용 (채택)** | 통과 | **1.85초** |
 | 벌크 UPDATE | 통과 | 16.2초 |
@@ -45,7 +45,7 @@ Java 26 · Spring Boot 4 · MySQL · JUnit5 · Testcontainers
 | 결정 | 선택 | 근거 |
 |---|---|---|
 | 참여 동시성 ([ADR-0001](docs/adr/0001-concurrency-control-strategy.md)) | DB 비관적 락 | 셋 다 초과 판매 0건, 처리량·지연 최고, Redis 불필요 |
-| 마감 정산 ([ADR-0002](docs/adr/0002-deadline-settlement-batch-concurrency.md)) | 단건 락 재사용 | 정합성은 둘 다 12회 통과. 벌크는 속도 이점이 없었고(테스트 실행 1.85초 vs 16.2초, 참고 지표) 전이 대상을 따로 조회해야 해서 단건 락 재사용 채택 |
+| 미달 공구 종료 ([ADR-0002](docs/adr/0002-deadline-settlement-batch-concurrency.md)) | 단건 락 재사용 | 정합성은 둘 다 12회 통과. 벌크는 속도 이점이 없었고(테스트 실행 1.85초 vs 16.2초, 참고 지표) 전이 대상을 따로 조회해야 해서 단건 락 재사용 채택 |
 | 결제 시점 ([ADR-0003](docs/adr/0003-payment-timing-strategy.md)) | 목표 달성 후 결제 | 미달 공구는 환불 자체가 없고, 참여 트랜잭션에서 PG 호출 안 함 |
 | 결제 트리거 ([ADR-0004](docs/adr/0004-payment-fanout-trigger-strategy.md)) | Transactional Outbox + Polling Relay | 정합성 테스트 통과, 신규 인프라 불필요. CDC는 PoC만 하고 보류 |
 

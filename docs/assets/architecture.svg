@@ -113,7 +113,7 @@ text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 <text x="136" y="230" class="s g">Scheduler</text>
 <rect x="136" y="236" width="403" height="56" rx="6" class="box"/>
 <line x1="136" y1="264" x2="539" y2="264" class="dv"/>
-<text x="148" y="254" class="t g">마감 정산 · 1시간 주기</text>
+<text x="148" y="254" class="t g">미달 공구 종료 · 1시간 주기</text>
 <text x="318" y="254" class="s g">DeadlineSettlementScheduler</text>
 <text x="148" y="282" class="t g">마감 임박 알림 · 1시간 주기</text>
 <text x="318" y="282" class="s g">DeadlineSoonNotificationScheduler</text>
