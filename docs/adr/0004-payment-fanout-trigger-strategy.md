@@ -9,16 +9,16 @@
 
 ADR-0003이 "B안: 목표 달성 후 결제(Charge-on-settlement)"를 채택하면서, 정산 배치가 상태 전이뿐
 아니라 참여자 수만큼의 PG 승인 호출까지 책임지게 됐다. 그런데 CLAUDE.md 금지 패턴("트랜잭션 안에서
-외부 API를 동기 호출하지 않는다")과 ADR-0002가 이미 확정한 배치 트랜잭션 경계(`GoodsFundingService`,
+외부 API를 동기 호출하지 않는다")과 ADR-0002가 이미 확정한 잡 트랜잭션 경계(`GoodsFundingService`,
 `findByIdForUpdate` 비관적 락) 때문에, PG 호출은 상태 확정 트랜잭션 안에 넣을 수 없다. ADR-0003은
 이 분리 설계를 "되돌리기 어려운 트랜잭션 경계 결정"으로 보고 별도 Plan Mode 세션으로 미뤄뒀다 —
 이 ADR이 그 후속이다.
 
-**중요한 정정**: 착수 전 코드 조사 결과, 결제 fan-out이 필요한 `FINISHED` 확정은 마감 정산 배치가
+**중요한 정정**: 착수 전 코드 조사 결과, 결제 fan-out이 필요한 `FINISHED` 확정은 미달 공구 종료 잡가
 아니라 **참여 트랜잭션**(`OrderService.participateGoodsFunding`의 `goodsFunding.increaseQuantityAndCloseIfNeeded`
-호출 시점, `orders/service/OrderService.java` 28-49행)에서 일어난다. 정산 배치(`GoodsFundingService.settleAsFailed`,
+호출 시점, `orders/service/OrderService.java` 28-49행)에서 일어난다. 미달 공구 종료 잡(`GoodsFundingService.settleAsFailed`,
 `@Scheduled` 기반)는 `FAILED` 확정만 담당한다. 따라서 이 ADR이 다루는 트랜잭션 분리 지점은 참여
-트랜잭션이며, 정산 배치 쪽이 아니다.
+트랜잭션이며, 종료 잡 쪽이 아니다.
 
 ### 왜 outbox 패턴인가 (실측 대상이 아닌 이유)
 
@@ -72,7 +72,7 @@ Redis/Spring Batch/Spring Security/jqwik)에 없는 Kafka+Debezium+Kafka Connect
   좀비 워커(lease 만료 후 원래 워커와 재claim한 워커의 동시 완료 시도) 경합 시 멱등성.
 - **지연/성능(참고 지표)**: A의 claim~처리완료 지연, B의 insert~토픽도달 지연(p50/p95, 느슨한
   상한선만 assert).
-- **테스트 하네스 함정 대비**: ADR-0002가 이미 겪은 컨테이너 공유/고정 데이터 재사용/타이밍 버퍼
+- **테스트 환경 함정 대비**: ADR-0002가 이미 겪은 컨테이너 공유/고정 데이터 재사용/타이밍 버퍼
   문제가 이번에도 재현될 수 있음 — B는 기존 `AbstractConcurrencyIntegrationTest`(공유 싱글턴
   컨테이너)를 재사용하지 않고 완전히 격리된 컨테이너 세트를 쓴다.
 
@@ -99,7 +99,7 @@ PaymentService" 절 참고.
 - **지연(참고 지표)**: claim~처리완료 지연, 로컬 MySQL Testcontainers + 즉시 응답하는 fake PG
   기준, n=20, p50=25ms, p95=40~65ms(2회 실측). 실제 PG 왕복 지연이 포함되지 않은 하한선이므로
   프로덕션 SLA 판단 근거로는 쓰지 않는다.
-- **테스트 하네스 함정 2건도 이 과정에서 발견·수정**: (1) 실측 테스트 자체의 스레드 오케스트레이션
+- **테스트 환경 함정 2건도 이 과정에서 발견·수정**: (1) 실측 테스트 자체의 스레드 오케스트레이션
   데드락, (2) 결제 fan-out 기능 추가 이전에 작성된 `OrderConcurrencyIntegrationTest`가 새로 생긴
   Payment/outbox 부수효과를 정리하지 않아 전체 스위트에서만 드러난 교차 오염. 상세는 로그 참고.
 

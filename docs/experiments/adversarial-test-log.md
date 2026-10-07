@@ -10,7 +10,7 @@ AI(Claude)를 리뷰어가 아니라 "이 코드를 깨뜨리는 역할"로 활�
 ## 주제별 로그
 
 - [공구 참여(재고 차감) 동시성 — 이슈 #1](./adversarial-test-log-participation.md)
-- [마감 정산·마감임박 알림 배치 — 이슈 #6](./adversarial-test-log-settlement.md)
+- [미달 공구 종료·마감임박 알림 잡 — 이슈 #6](./adversarial-test-log-settlement.md)
 - [결제 fan-out(claim/lease/재시도) — 이슈 #9](./adversarial-test-log-payment.md)
 
 ## 사용 프롬프트 템플릿

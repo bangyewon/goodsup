@@ -9,7 +9,7 @@
 목표 수량을 달성한 공구만 결제를 요청하고, 마감까지 미달이면 결제 없이 `FAILED`로 종료되는 백엔드 서비스입니다(ADR-0003: 목표 달성 후 결제).
 핵심 기술 과제는 마감 시각에 몰리는 **동시 결제 요청의 정합성 제어**입니다.
 
-- 기술 스택: Spring Boot 4.x, Java 26, MySQL, Spring Data JPA, springdoc(Swagger UI), `@Scheduled`(마감 정산·알림·결제 릴레이), 비밀번호 해싱용 `spring-security-crypto`, Testcontainers, jqwik(속성 기반 테스트)
+- 기술 스택: Spring Boot 4.x, Java 26, MySQL, Spring Data JPA, springdoc(Swagger UI), `@Scheduled`(미달 공구 종료·알림·결제 릴레이), 비밀번호 해싱용 `spring-security-crypto`, Testcontainers, jqwik(속성 기반 테스트)
   - Redis(Redisson), Spring Batch, Spring Security(JWT)는 현재 사용하지 않는다. 필요해지면 ADR로 근거를 남긴 뒤 이 문서에 먼저 추가한다.
 - 백엔드 프로젝트 루트는 `back/` 디렉터리입니다 (Gradle Kotlin DSL).
 - 아키텍처: Controller → Service → Repository 3계층 구조. 도메인별 패키지 구성(`goods`, `orders`, `payment`, `notification`, `user`)
@@ -22,7 +22,7 @@
 - 공통 응답은 `CustomApiResponse<T>` 래퍼를 사용한다. 에러는 `GlobalExceptionHandler`에서 일괄 처리하며, 도메인별 커스텀 예외는 `xxxException`으로 명명한다.
 - 동시성이 필요한 로직(재고 차감, 마감 판정)은 반드시 명시적인 락으로 보호한다(락 없이 단순 `SELECT` 후 `UPDATE` 금지).
   - **공구 참여(재고 차감)**: `GoodsFundingRepository.findByIdForUpdate`(`@Lock(PESSIMISTIC_WRITE)`)로 DB 비관적 락을 사용한다. Redisson RLock, 낙관적 락+재시도와 실측 비교한 결과이며 근거는 `docs/adr/0001-concurrency-control-strategy.md` 참고.
-  - 그 외 새로운 동시성 로직(마감 정산 등)에 대해 아직 실측 비교가 없다면, 코드 작성 전에 Plan Mode로 전략을 비교하고 ADR을 작성한다. Redisson RLock을 쓰는 경우 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
+  - 그 외 새로운 동시성 로직(미달 공구 종료 등)에 대해 아직 실측 비교가 없다면, 코드 작성 전에 Plan Mode로 전략을 비교하고 ADR을 작성한다. Redisson RLock을 쓰는 경우 락 획득/해제는 서비스 메서드 내에서 try-finally로 명시적으로 처리한다.
 
 - **CDC(Debezium + Kafka)는 ADR-0004 B안 경량 PoC 용도로만, 테스트 스코프(Testcontainers)에서만 사용한다.** 프로덕션 코드·런타임 의존성·배포 인프라로의 도입은 ADR-0004 결정이 확정된 뒤 이 문서를 다시 갱신한 후에 진행한다.
 
@@ -32,7 +32,7 @@
 - 네이밍: 클래스는 PascalCase, 메서드/변수는 camelCase, 상수는 UPPER_SNAKE_CASE
 - DTO는 요청(`XxxRequest`)과 응답(`XxxResponse`)을 분리하고, Entity를 API 응답에 직접 노출하지 않는다.
 - Lombok은 `@Getter`, `@Builder`, `@RequiredArgsConstructor`만 사용한다. `@Data`, `@Setter`는 엔티티에 사용하지 않는다(불변성 유지).
-- 로그는 `Logback` 사용, 운영 이슈 추적이 필요한 지점(락 획득 실패, 결제 실패, 배치 판정)은 반드시 INFO 이상 레벨로 로그를 남긴다.
+- 로그는 `Logback` 사용, 운영 이슈 추적이 필요한 지점(락 획득 실패, 결제 실패, 종료 잡 판정)은 반드시 INFO 이상 레벨로 로그를 남긴다.
 
 ## 금지 패턴
 
@@ -44,9 +44,9 @@
 ## 테스트 규칙
 
 - 모든 PR은 최소 하나 이상의 테스트를 포함해야 한다. 테스트 없는 PR은 머지하지 않는다.
-- 동시성 로직(참여/결제, 마감 정산)은 반드시 동시 요청을 재현하는 통합 테스트를 작성한다(`ExecutorService` 기반 동시 호출 테스트 또는 Testcontainers 활용).
+- 동시성 로직(참여/결제, 미달 공구 종료)은 반드시 동시 요청을 재현하는 통합 테스트를 작성한다(`ExecutorService` 기반 동시 호출 테스트 또는 Testcontainers 활용).
 - 단위 테스트는 JUnit5 + Mockito, 통합 테스트는 `@SpringBootTest` + Testcontainers(MySQL)를 사용한다(Kafka는 ADR-0004 CDC PoC 전용 테스트 스코프).
-- 동시성/결제 정합성과 관련된 **불변식**(예: "참여 수량은 목표 수량을 절대 초과하지 않는다", "결제 금액 합계는 항상 정합한다", "정산 후 상태 전이는 되돌아가지 않는다")은 `jqwik`(JUnit5 통합) 기반 property-based test로 검증한다.
+- 동시성/결제 정합성과 관련된 **불변식**(예: "참여 수량은 목표 수량을 절대 초과하지 않는다", "결제 금액 합계는 항상 정합한다", "확정 후 상태 전이는 되돌아가지 않는다")은 `jqwik`(JUnit5 통합) 기반 property-based test로 검증한다.
   - 무작위 커맨드 시퀀스를 생성해 매 단계마다 불변식이 유지되는지 확인하는 stateful property test를 우선 활용한다.
   - `ExecutorService` 기반 동시 요청 재현 테스트를 대체하지 않고 **보완**한다 — 사람이 미리 떠올린 특정 시나리오 밖의 반례를 찾는 용도이며, 재현된 반례는 반드시 example-based 회귀 테스트로도 고정한다.
 - 커밋 전 훅(`.githooks/pre-commit`)이 `./gradlew test`를 실행하며, 테스트가 통과해야 커밋할 수 있다. GitHub Actions는 현재 Claude PR 리뷰만 수행하고 빌드·테스트는 돌리지 않는다. AI가 생성한 코드도 예외 없이 동일한 기준을 적용한다.
@@ -54,7 +54,7 @@
 ## Claude Code 사용 원칙
 
 - **자유롭게 위임 가능**: CRUD 컨트롤러/서비스/리포지토리 보일러플레이트, DTO 변환 코드, 테스트 케이스 초안, 커밋 메시지·PR 설명 초안
-- **Plan Mode를 먼저 사용**: 동시성 제어 전략, 마감 정산 배치 알고리즘, 트랜잭션 경계처럼 되돌리기 어려운 설계는 코드를 바로 작성하지 않고 Plan Mode로 대안을 비교 검토한 뒤, 최종 선택과 근거는 `docs/adr/`에 직접 문서화한다.
+- **Plan Mode를 먼저 사용**: 동시성 제어 전략, 미달 공구 종료 잡 알고리즘, 트랜잭션 경계처럼 되돌리기 어려운 설계는 코드를 바로 작성하지 않고 Plan Mode로 대안을 비교 검토한 뒤, 최종 선택과 근거는 `docs/adr/`에 직접 문서화한다.
 - **새 이슈 작업을 시작하기 전, 해당 결정이 ADR 대상인지 먼저 판단한다.** 대상이면 구현 전에 `docs/adr/`에 다음 번호로 초안을 먼저 작성하고 사람의 확인을 받은 뒤 진행한다.
 - 새로운 라이브러리·아키텍처 패턴을 도입할 때는 먼저 이 문서에 원칙을 추가한 뒤 코드를 작성한다.
 - 커밋 전 Claude가 생성한 코드는 반드시 라인 단위로 리뷰한다. PR 설명에 AI 활용 범위를 명시한다(PR 템플릿 참고).
@@ -62,7 +62,7 @@
 ### AI를 검증 파트너로 활용
 
 Claude는 코드 생성뿐 아니라 구현의 반례를 찾는 적대적 검증자(Adversarial Reviewer)로 활용한다.
-특히 동시성 제어, 분산락, 결제 상태 전이, 마감 정산과 같이 장애 발생 시 데이터 정합성에 영향을 주는 로직은 다음 순서로 검증한다.
+특히 동시성 제어, 분산락, 결제 상태 전이, 미달 공구 종료와 같이 장애 발생 시 데이터 정합성에 영향을 주는 로직은 다음 순서로 검증한다.
 
 1. Claude에게 정상 동작을 가정하지 않고 실패 가능한 실행 순서와 엣지 케이스를 생성하도록 요청한다.
 2. 생성된 시나리오 중 실제 재현 가능성이 있는 케이스를 선정한다.

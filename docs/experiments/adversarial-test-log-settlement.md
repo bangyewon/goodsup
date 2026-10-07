@@ -1,27 +1,27 @@
-# 적대적 동시성 테스트 로그 — 마감 정산·마감임박 알림 배치 (이슈 #6)
+# 적대적 동시성 테스트 로그 — 미달 공구 종료·마감임박 알림 잡 (이슈 #6)
 
 [인덱스로 돌아가기](./adversarial-test-log.md)
 
-## 마감 정산 배치 (ADR-0002)
+## 미달 공구 종료 잡 (ADR-0002)
 
-대상 로직: 마감 정산 배치 후보 A-1(`PessimisticLockSettlementBatch`)/A-2(`BulkUpdateSettlementService`),
+대상 로직: 미달 공구 종료 잡 후보 A-1(`PessimisticLockSettlementBatch`)/A-2(`BulkUpdateSettlementService`),
 B-1(분산락 없음, 알림 unique 제약)의 상태 전이·중복 실행 방지 (ADR-0002, 이슈 #6).
 
 | # | 시나리오 | 실제 재현 여부 | 원인 | 수정 내용 | 관련 커밋 |
 |---|---|---|---|---|---|
-| 1 | 참여 vs 배치가 마지막 한 자리를 두고 동시 경합하면 `FINISHED`/`FAILED`가 동시에 확정되거나 재고 불변식이 깨질 수 있다 | 재현 안 됨 (A-1/A-2 둘 다, 3회 반복 총 12회 실행) | A-1은 ADR-0001과 동일한 `findByIdForUpdate` 비관적 락으로, A-2는 조건부 UPDATE의 원자성으로 각각 직렬화됨 | - | - |
-| 2 | 마감 정산 배치가 중첩·중복 실행되면 상태 전이나 `FUNDING_FAILED` 알림이 중복 발생할 수 있다 | 재현 안 됨 (A-1/A-2 둘 다, B-1만으로) | 조건부 UPDATE(`WHERE status='RECRUITING'`)가 자연히 멱등이고, `Notification` unique 제약(`uk_notification_user_funding_type`) + insert 전 존재 확인이 이중 방어선 역할을 함 | - | - |
-| 3 | (테스트 하네스 자체의 결함) 여러 정산 후보를 같은 부모 `AbstractConcurrencyIntegrationTest`를 상속해 실측 비교하면, Testcontainers `@Container` static 필드가 먼저 끝난 서브클래스에서 stop되어 나중 서브클래스가 죽은 컨테이너에 연결 시도 | **재현됨** | `@Container`(Testcontainers JUnit5 확장)로 선언한 static 필드는 부모 클래스가 소유해 여러 서브클래스가 공유하는데, 확장이 "먼저 시작한 서브클래스"의 afterAll에서 stop시킴 | 싱글턴 컨테이너 패턴(`static { mysql.start(); }`, `@Container` 제거)으로 전환 | 이번 커밋(AbstractConcurrencyIntegrationTest) |
-| 4 | (테스트 하네스 자체의 결함) 여러 후보 테스트 클래스가 같은 DB를 공유하는데 고정된 이메일(`host1`, `host2` 등)을 재사용하면 클래스 간 유니크 제약 충돌이 날 수 있다 | **재현됨** | 정리(cleanup) 없이 동일 이메일을 여러 테스트 클래스가 순서대로 insert | `AbstractSettlementConcurrencyExperimentTest`에 `@AfterEach`로 FK 순서(orders→notification→goods_funding→user) 정리 추가 | 이번 커밋 |
-| 5 | (테스트 하네스 자체의 결함) 사전 참여 단계의 마감 버퍼가 너무 촉박하면 환경이 느릴 때 정상 참여도 거절될 수 있다 | **재현됨** | 시나리오 2의 `deadlineAt = now + 1초` 버퍼로 순차 참여 19회를 끝내기엔 부족 | 버퍼를 10초로 확대 | 이번 커밋 |
+| 1 | 참여 vs 종료 잡이 마지막 한 자리를 두고 동시 경합하면 `FINISHED`/`FAILED`가 동시에 확정되거나 재고 불변식이 깨질 수 있다 | 재현 안 됨 (A-1/A-2 둘 다, 3회 반복 총 12회 실행) | A-1은 ADR-0001과 동일한 `findByIdForUpdate` 비관적 락으로, A-2는 조건부 UPDATE의 원자성으로 각각 직렬화됨 | - | - |
+| 2 | 미달 공구 종료 잡가 중첩·중복 실행되면 상태 전이나 `FUNDING_FAILED` 알림이 중복 발생할 수 있다 | 재현 안 됨 (A-1/A-2 둘 다, B-1만으로) | 조건부 UPDATE(`WHERE status='RECRUITING'`)가 자연히 멱등이고, `Notification` unique 제약(`uk_notification_user_funding_type`) + insert 전 존재 확인이 이중 방어선 역할을 함 | - | - |
+| 3 | (테스트 환경 자체의 결함) 여러 종료 잡 후보를 같은 부모 `AbstractConcurrencyIntegrationTest`를 상속해 실측 비교하면, Testcontainers `@Container` static 필드가 먼저 끝난 서브클래스에서 stop되어 나중 서브클래스가 죽은 컨테이너에 연결 시도 | **재현됨** | `@Container`(Testcontainers JUnit5 확장)로 선언한 static 필드는 부모 클래스가 소유해 여러 서브클래스가 공유하는데, 확장이 "먼저 시작한 서브클래스"의 afterAll에서 stop시킴 | 싱글턴 컨테이너 패턴(`static { mysql.start(); }`, `@Container` 제거)으로 전환 | 이번 커밋(AbstractConcurrencyIntegrationTest) |
+| 4 | (테스트 환경 자체의 결함) 여러 후보 테스트 클래스가 같은 DB를 공유하는데 고정된 이메일(`host1`, `host2` 등)을 재사용하면 클래스 간 유니크 제약 충돌이 날 수 있다 | **재현됨** | 정리(cleanup) 없이 동일 이메일을 여러 테스트 클래스가 순서대로 insert | `AbstractSettlementConcurrencyExperimentTest`에 `@AfterEach`로 FK 순서(orders→notification→goods_funding→user) 정리 추가 | 이번 커밋 |
+| 5 | (테스트 환경 자체의 결함) 사전 참여 단계의 마감 버퍼가 너무 촉박하면 환경이 느릴 때 정상 참여도 거절될 수 있다 | **재현됨** | 시나리오 2의 `deadlineAt = now + 1초` 버퍼로 순차 참여 19회를 끝내기엔 부족 | 버퍼를 10초로 확대 | 이번 커밋 |
 
-### 회고 (#6, 마감 정산 배치)
+### 회고 (#6, 미달 공구 종료 잡)
 
 - 순수 동시성 제어 로직(A-1/A-2/B-1)에서는 반례가 하나도 재현되지 않았다 — ADR-0001에서 검증된
   "명시적 락으로 보호"라는 원칙을 그대로 재사용한 결과로 해석한다.
-- 대신 검증 과정에서 테스트 하네스 자체의 결함 3건(#3~#5)을 찾았다. 이들은 실제 프로덕션 동시성
+- 대신 검증 과정에서 테스트 환경 자체의 결함 3건(#3~#5)을 찾았다. 이들은 실제 프로덕션 동시성
   버그가 아니라 "여러 후보를 나란히 실측 비교"하는 이번 ADR 특유의 작업 방식에서 처음 드러난
-  문제였다(#5 이전까지는 정산 후보가 하나뿐이라 컨테이너 공유·데이터 정리 문제가 없었음). 실측
+  문제였다(#5 이전까지는 종료 잡 후보가 하나뿐이라 컨테이너 공유·데이터 정리 문제가 없었음). 실측
   비교 자체가 새로운 종류의 반례(테스트 인프라 버그)를 드러낼 수 있다는 점을 보여준다.
 - A-2(벌크 UPDATE)가 정합성은 통과했지만 지연이 A-1 대비 8~9배 느리게 측정된 것은 사전 가설과
   반대되는 결과였다(ADR-0002 실측 결과 절 참고). "직관적으로 빠를 것 같은 단일 SQL"이 실측 없이는
@@ -33,14 +33,14 @@ B-1(분산락 없음, 알림 unique 제약)의 상태 전이·중복 실행 방�
 
 | # | 시나리오 | 실제 재현 여부 | 원인 | 수정 내용 | 관련 커밋 |
 |---|---|---|---|---|---|
-| 1 | 스케줄러가 임박 대상 id를 조회한 시점엔 `RECRUITING`이었지만, 그 이후 `NotificationService.notifyDeadlineSoon`이 실제로 실행되는 시점 사이에(참여로 목표 달성 → `FINISHED`, 또는 배치 정산 → `FAILED`) 상태가 바뀌면, 이미 끝난 공구에도 여전히 "마감임박" 알림이 나간다 | **재현됨** | `notifyDeadlineSoon`이 `GoodsFunding`을 FK 참조용 프록시(`getReferenceById`, 쿼리 없음)로만 사용하고 현재 상태를 재확인하지 않음 — 후보 조회와 발송 사이의 시간차를 고려하지 않은 설계 누락 | `GoodsFundingService.getReference`를 제거하고 `findRecruiting(id)`(실제 조회 + `status == RECRUITING` 필터)로 교체, `notifyDeadlineSoon`은 이 조회 결과가 없으면(이미 RECRUITING이 아니면) 즉시 0건 반환하고 종료 | 이번 커밋(GoodsFundingService/NotificationService/NotificationServiceTest) |
-| 2 | 배치가 중첩·중복 실행되면 `DEADLINE_SOON` 알림이 참여자 수보다 많이 발송될 수 있다 | 재현 안 됨 (통합 테스트로 실측, ADR-0002가 미뤄둔 시나리오 3) | `existsBy` 사전체크 + `Notification` 유니크 제약(`uk_notification_user_funding_type`) + 개별 `DataIntegrityViolationException` catch 조합(B-1 패턴)이 잡 1에도 동일하게 유효함을 실측 확인 — 참여자 19명, 동시 호출 10회에서도 알림은 정확히 19건 | - | - |
+| 1 | 스케줄러가 임박 대상 id를 조회한 시점엔 `RECRUITING`이었지만, 그 이후 `NotificationService.notifyDeadlineSoon`이 실제로 실행되는 시점 사이에(참여로 목표 달성 → `FINISHED`, 또는 종료 잡 → `FAILED`) 상태가 바뀌면, 이미 끝난 공구에도 여전히 "마감임박" 알림이 나간다 | **재현됨** | `notifyDeadlineSoon`이 `GoodsFunding`을 FK 참조용 프록시(`getReferenceById`, 쿼리 없음)로만 사용하고 현재 상태를 재확인하지 않음 — 후보 조회와 발송 사이의 시간차를 고려하지 않은 설계 누락 | `GoodsFundingService.getReference`를 제거하고 `findRecruiting(id)`(실제 조회 + `status == RECRUITING` 필터)로 교체, `notifyDeadlineSoon`은 이 조회 결과가 없으면(이미 RECRUITING이 아니면) 즉시 0건 반환하고 종료 | 이번 커밋(GoodsFundingService/NotificationService/NotificationServiceTest) |
+| 2 | 잡이 중첩·중복 실행되면 `DEADLINE_SOON` 알림이 참여자 수보다 많이 발송될 수 있다 | 재현 안 됨 (통합 테스트로 실측, ADR-0002가 미뤄둔 시나리오 3) | `existsBy` 사전체크 + `Notification` 유니크 제약(`uk_notification_user_funding_type`) + 개별 `DataIntegrityViolationException` catch 조합(B-1 패턴)이 잡 1에도 동일하게 유효함을 실측 확인 — 참여자 19명, 동시 호출 10회에서도 알림은 정확히 19건 | - | - |
 | 3 | `threshold-hours` 설정값이 0 이하이거나 매우 크면 어떻게 되는가 | 해당 없음 (데이터 정합성 문제 아님) | `now.plusHours(threshold)`가 `now`보다 이전이 되면 BETWEEN 조건이 항상 거짓이 되어 후보가 조회되지 않을 뿐, 예외나 오동작은 없음 — 운영 설정값의 문제이지 로직 결함이 아님 | - | - |
 | 4 | 스케줄러 조회 이후 대상 공구가 삭제되면 어떻게 되는가 | 해당 없음 | 현재 코드베이스에 `GoodsFunding` 삭제 기능 자체가 없음(`grep` 확인) — 발생 불가능한 시나리오 | - | - |
 
 ### 회고 (#6, 잡 1)
 
-- 시나리오 1은 동시성 타이밍 문제가 아니라 "두 개의 분리된 트랜잭션(후보 조회 vs 실제 발송) 사이의 시간차"에서 나온 일반적인 stale-read 문제였다 — ADR-0002가 이미 검증한 "동시 경합"과는 다른 종류의 반례였다는 점에서, 같은 배치라도 "동시에 여러 번 도는 경우"와 "한 번 도는 동안 시간이 흐르는 경우"를 별도로 검토해야 한다는 교훈을 남긴다.
+- 시나리오 1은 동시성 타이밍 문제가 아니라 "두 개의 분리된 트랜잭션(후보 조회 vs 실제 발송) 사이의 시간차"에서 나온 일반적인 stale-read 문제였다 — ADR-0002가 이미 검증한 "동시 경합"과는 다른 종류의 반례였다는 점에서, 같은 잡이라도 "동시에 여러 번 도는 경우"와 "한 번 도는 동안 시간이 흐르는 경우"를 별도로 검토해야 한다는 교훈을 남긴다.
 - 시나리오 2(중복 실행 방지)는 ADR-0002가 "잡 1이 아직 구현되지 않아 실행하지 못했다"고 명시적으로 남겨뒀던 후속 작업이었다 — 이번 구현과 함께 실제로 실행해 B-1 패턴이 잡 1에도 유효함을 실측으로 닫았다.
 
 ## GoodsFunding 상태 전이 불변식 — jqwik property test (이슈 #6 잡 2)
@@ -48,19 +48,19 @@ B-1(분산락 없음, 알림 unique 제약)의 상태 전이·중복 실행 방�
 대상 로직: `GoodsFunding.increaseQuantityAndCloseIfNeeded`/`closeAsFailedIfDeadlinePassed`
 (ADR-0002 A-1을 `GoodsFundingService`/`DeadlineSettlementScheduler`로 프로덕션 배선하는 과정,
 이슈 #6 잡 2). 사람이 시나리오를 미리 떠올려 요청한 것이 아니라, CLAUDE.md가 요구하는 jqwik
-stateful property test(참여 명령 + 정산 명령을 섞은 무작위 커맨드 시퀀스)를 작성해 실행하는 중
+stateful property test(참여 명령 + 종료 명령을 섞은 무작위 커맨드 시퀀스)를 작성해 실행하는 중
 jqwik이 자동으로 축소(shrink)한 반례로 발견됐다.
 
 | # | 시나리오 | 실제 재현 여부 | 원인 | 수정 내용 | 관련 커밋 |
 |---|---|---|---|---|---|
-| 1 | 정산 배치가 먼저 `FAILED`로 확정한 뒤, 그 시점 이후에도(예: 지연된 재시도, 또는 향후 새 호출 경로가 상태 체크 없이 호출하는 경우) `increaseQuantityAndCloseIfNeeded`가 호출되면 `remainingQuantity`만 보고 통과시켜 수량이 계속 증가하고, 목표에 도달하면 `FAILED -> FINISHED`로 재전이한다 | **재현됨** (jqwik 축소 결과: `commands=[0(정산), 10, 15, 15, 15, 15, 15, 15](참여)` — 정산으로 FAILED 확정 후 참여 누적으로 FINISHED 재전이) | `increaseQuantityAndCloseIfNeeded`가 `status`를 전혀 확인하지 않고 `targetQuantity - currentQuantity`만으로 수량 증가 가능 여부를 판단함. 현재 유일한 호출자인 `OrderService.participateGoodsFunding`은 호출 전 `status == RECRUITING`을 확인해서 실무에서는 막혀 있었지만, 그 가드는 호출자 쪽에만 있고 엔티티 자신은 "정산 후 상태 전이는 되돌아가지 않는다"는 불변식을 스스로 지키지 못했다 | `increaseQuantityAndCloseIfNeeded` 시작부에 `status != RECRUITING`이면 `GoodsException(RECRUITING_CLOSED)`를 던지는 가드 추가(`closeAsFailedIfDeadlinePassed`가 이미 대칭적으로 갖고 있던 가드와 동일 패턴). 회귀 테스트를 jqwik 반례를 축소한 그대로 `GoodsFundingTest`에 example-based로 고정 | 이번 커밋(GoodsFunding/GoodsFundingTest/GoodsFundingConcurrencyInvariantPropertyTest) |
+| 1 | 종료 잡이 먼저 `FAILED`로 확정한 뒤, 그 시점 이후에도(예: 지연된 재시도, 또는 향후 새 호출 경로가 상태 체크 없이 호출하는 경우) `increaseQuantityAndCloseIfNeeded`가 호출되면 `remainingQuantity`만 보고 통과시켜 수량이 계속 증가하고, 목표에 도달하면 `FAILED -> FINISHED`로 재전이한다 | **재현됨** (jqwik 축소 결과: `commands=[0(정산), 10, 15, 15, 15, 15, 15, 15](참여)` — 정산으로 FAILED 확정 후 참여 누적으로 FINISHED 재전이) | `increaseQuantityAndCloseIfNeeded`가 `status`를 전혀 확인하지 않고 `targetQuantity - currentQuantity`만으로 수량 증가 가능 여부를 판단함. 현재 유일한 호출자인 `OrderService.participateGoodsFunding`은 호출 전 `status == RECRUITING`을 확인해서 실무에서는 막혀 있었지만, 그 가드는 호출자 쪽에만 있고 엔티티 자신은 "정산 후 상태 전이는 되돌아가지 않는다"는 불변식을 스스로 지키지 못했다 | `increaseQuantityAndCloseIfNeeded` 시작부에 `status != RECRUITING`이면 `GoodsException(RECRUITING_CLOSED)`를 던지는 가드 추가(`closeAsFailedIfDeadlinePassed`가 이미 대칭적으로 갖고 있던 가드와 동일 패턴). 회귀 테스트를 jqwik 반례를 축소한 그대로 `GoodsFundingTest`에 example-based로 고정 | 이번 커밋(GoodsFunding/GoodsFundingTest/GoodsFundingConcurrencyInvariantPropertyTest) |
 
 ### 회고 (#6, 잡 2 프로덕션 배선)
 
 - 이 반례는 동시성(여러 스레드가 동시에 부르는 경합)이 아니라 **단일 스레드 안에서의 순서 위반**이다
   — jqwik property test가 "동시 요청 재현 테스트를 대체하지 않고 보완한다"고 CLAUDE.md에 명시된
   이유를 그대로 보여준다: `ExecutorService` 기반 통합 테스트(`DeadlineSettlementConcurrencyTest`)는
-  "참여 vs 정산이 동시에 오는 경우"만 다루고, "정산 이후 시점에 참여가 뒤늦게 온다"는 순서는
+  "참여 vs 종료 잡이 동시에 오는 경우"만 다루고, "종료 잡 이후 시점에 참여가 뒤늦게 온다"는 순서는
   다루지 않았다.
 - 현재 프로덕션 호출 경로(`OrderService`)에서는 이 버그가 실제로 발현되지 않는다 — 호출자 쪽
   가드가 이미 막고 있기 때문이다. 그럼에도 엔티티 레벨에서 고친 이유는, 이 메서드가 앞으로 새
