@@ -99,7 +99,7 @@ A안(폴링 릴레이)은 ADR-0001/0002와 같은 수준(전체 구현 + 장애�
 
 `OutboxCdcPocTest`(`CDC_POC=true`로만 실행, 격리된 MySQL(binlog ROW)+Kafka+Debezium Connect
 컨테이너)로 확인했다. 상세와 해석 주의점은 `docs/experiments/adversarial-test-log-payment.md`의
-"B안(CDC) 경량 PoC 실측" 절 기.
+"B안(CDC) 경량 PoC 실측" 절 참고.
 
 - **도달 여부**: outbox insert가 Debezium을 거쳐 Kafka 토픽에 실제로 나타났다(워밍업 1건 + 측정 20건
   전부 도달).
