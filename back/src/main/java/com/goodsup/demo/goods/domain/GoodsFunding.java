@@ -72,31 +72,34 @@ public class GoodsFunding extends BaseEntity {
         this.status = GoodsFundingStatus.RECRUITING;
     }
 
-    public void increaseQuantityAndCloseIfNeeded(int quantity) {
-        if (this.status != GoodsFundingStatus.RECRUITING) {
+    public void increaseQuantityAndCloseIfNeeded(int quantity, int alreadyOrderedQuantity) {
+        if (status != GoodsFundingStatus.RECRUITING || !deadlineAt.isAfter(LocalDateTime.now())) {
             throw new GoodsException(ErrorCode.RECRUITING_CLOSED);
+        }
+        if (alreadyOrderedQuantity + quantity > maxQuantityPerUser) {
+            throw new GoodsException(ErrorCode.MAX_QUANTITY_OVER);
         }
         int remainingQuantity = targetQuantity - currentQuantity;
         if (remainingQuantity < quantity) {
             throw new GoodsException(ErrorCode.QUANTITY_EXCEEDS_REMAINING);
         }
-        this.currentQuantity += quantity;
-        if (this.currentQuantity >= this.targetQuantity) {
-            this.status = GoodsFundingStatus.FINISHED;
+        currentQuantity += quantity;
+        if (currentQuantity >= targetQuantity) {
+            status = GoodsFundingStatus.FINISHED;
         }
     }
 
     public boolean closeAsFailedIfDeadlinePassed(LocalDateTime referenceTime) {
-        if (this.status != GoodsFundingStatus.RECRUITING) {
+        if (status != GoodsFundingStatus.RECRUITING) {
             return false;
         }
-        if (referenceTime.isBefore(this.deadlineAt)) {
+        if (referenceTime.isBefore(deadlineAt)) {
             return false;
         }
-        if (this.currentQuantity >= this.targetQuantity) {
+        if (currentQuantity >= targetQuantity) {
             return false;
         }
-        this.status = GoodsFundingStatus.FAILED;
+        status = GoodsFundingStatus.FAILED;
         return true;
     }
 }

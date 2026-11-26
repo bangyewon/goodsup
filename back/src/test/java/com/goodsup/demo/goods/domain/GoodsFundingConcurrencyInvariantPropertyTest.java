@@ -31,9 +31,10 @@ class GoodsFundingConcurrencyInvariantPropertyTest {
             boolean wasFinishedBefore = goodsFunding.getStatus() == GoodsFundingStatus.FINISHED;
 
             try {
-                goodsFunding.increaseQuantityAndCloseIfNeeded(quantity);
+                // 인당 한도는 이 불변식과 무관하므로 기존 주문 0으로 고정해 잔여 수량 경로만 탐색한다.
+                goodsFunding.increaseQuantityAndCloseIfNeeded(quantity, 0);
             } catch (GoodsException e) {
-                // 잔여 수량 부족에 따른 정상 거절
+                // 잔여 수량 부족 또는 FINISHED 이후 참여에 따른 정상 거절
             }
 
             assertThat(goodsFunding.getCurrentQuantity()).isLessThanOrEqualTo(TARGET_QUANTITY);
@@ -50,7 +51,7 @@ class GoodsFundingConcurrencyInvariantPropertyTest {
 
     @Property
     void 참여와_정산_시도를_임의_순서로_섞어도_정산_불변식이_유지된다(@ForAll("mixedCommandSequences") List<Integer> commands) {
-        LocalDateTime deadlineAt = LocalDateTime.now().plusSeconds(1);
+        LocalDateTime deadlineAt = LocalDateTime.now().plusDays(1);
         LocalDateTime afterDeadline = deadlineAt.plusSeconds(1);
         GoodsFunding goodsFunding = newGoodsFunding(deadlineAt);
 
@@ -61,9 +62,9 @@ class GoodsFundingConcurrencyInvariantPropertyTest {
                 goodsFunding.closeAsFailedIfDeadlinePassed(afterDeadline);
             } else {
                 try {
-                    goodsFunding.increaseQuantityAndCloseIfNeeded(command);
+                    goodsFunding.increaseQuantityAndCloseIfNeeded(command, 0);
                 } catch (GoodsException e) {
-                    // 잔여 수량 부족에 따른 정상 거절
+                    // 잔여 수량 부족 또는 FINISHED/FAILED 이후 참여에 따른 정상 거절
                 }
             }
 

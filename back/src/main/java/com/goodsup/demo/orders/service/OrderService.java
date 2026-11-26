@@ -36,16 +36,8 @@ public class OrderService {
 
         GoodsFunding goodsFunding = goodsFundingService.getForUpdate(goodsFundingId);
 
-        if (goodsFunding.getStatus() != GoodsFundingStatus.RECRUITING
-                || !goodsFunding.getDeadlineAt().isAfter(LocalDateTime.now())) {
-            throw new GoodsException(ErrorCode.RECRUITING_CLOSED);
-        }
         int alreadyOrderedQuantity = ordersRepository.sumQuantityByGoodsFundingIdAndUserId(goodsFundingId, userId);
-        if (goodsFunding.getMaxQuantityPerUser() < alreadyOrderedQuantity + request.quantity()) {
-            throw new GoodsException(ErrorCode.MAX_QUANTITY_OVER);
-        }
-
-        goodsFunding.increaseQuantityAndCloseIfNeeded(request.quantity());
+        goodsFunding.increaseQuantityAndCloseIfNeeded(request.quantity(),alreadyOrderedQuantity);
 
         Orders order = ordersRepository.save(request.toEntity(goodsFunding, user));
 
